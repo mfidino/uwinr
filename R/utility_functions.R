@@ -14,7 +14,8 @@
 #' @param tables A character vector of the table names to be pulled from the
 #'   UWIN database. If this argument is left blank than \code{tables} is set to
 #'   \code{c("CameraLocations", "Detections", "Photos", "Species",
-#'   "StudyAreas", "Visits", "lkupAction", "lkupSeasons")}.
+#'   "StudyAreas", "Visits", "lkupAction", "lkupDetectionStatus",
+#'   "lkupSeasons")}.
 #'
 #' @return A named list of tables from the UWIN database. Each table will be
 #'   returned as a \code{\link{data.table}} instead of a
@@ -55,4 +56,29 @@ uwin_data <- lapply(tables, FUN = function(x) {
 names(uwin_data) <- tables
 RODBC::odbcClose(uwin)
 return(uwin_data)
+}
+
+#' @title Format the detection table in UWIN database
+#'
+
+format_detections <- function(uwin_data = NULL, only_verified = FALSE) {
+  if (!exists("Detections", uwin_data)){
+    stop("The uwin data list does not include the 'Detections' table,
+      include 'Detections' in the 'tables' argument of collect_tables ")
+  }
+  detections <- uwin_data$Detections
+  # remove all deleted ID's
+  togo <- which(detections$StatusID == 3)
+  detections <- detections[-togo,]
+
+  # remove Pending ID's
+  if (only_verified) {
+    togo <- which(detections$StatusID == 1)
+    detections <- detections[-togo,]
+  }
+
+  oname <- deparse(substitute(uwin_data))
+  uwin_data$Detections <- detections
+  print(oname)
+  assign(oname, uwin_data, envir = .GlobalEnv)
 }

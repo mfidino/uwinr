@@ -74,3 +74,10 @@ $RECYCLE.BIN/
 
 # Windows shortcuts
 *.lnk
+
+# don't publish access database
+*.accdb
+
+# no txt or csv files
+*.csv
+*.txt

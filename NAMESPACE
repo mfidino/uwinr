@@ -3,3 +3,6 @@
 export(collect_tables)
 export(visits_qaqc)
 import(data.table)
+importFrom(RODBC,odbcClose)
+importFrom(RODBC,odbcConnectAccess2007)
+importFrom(RODBC,sqlFetch)

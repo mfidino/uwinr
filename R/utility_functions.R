@@ -15,7 +15,7 @@
 #'   UWIN database. If this argument is left blank than \code{tables} is set to
 #'   \code{c("CameraLocations", "Detections", "Photos", "Species",
 #'   "StudyAreas", "Visits", "lkupAction", "lkupDetectionStatus",
-#'   "lkupSeasons")}.
+#'   "lkupSeasons", "lkupVisitTypes")}.
 #'
 #' @return A named list of tables from the UWIN database. Each table will be
 #'   returned as a \code{\link{data.table}} instead of a
@@ -29,6 +29,7 @@
 #' dat <- collect_tables("UWIN_DB_CHIL.accdb", tables = c("Photos", "Visits"))
 #'
 #' @export
+#' @importFrom RODBC odbcConnectAccess2007 sqlFetch odbcClose
 collect_tables <- function(database = NULL, tables = NULL) {
 # Error handling
 if (is.null(database)) {
@@ -46,7 +47,8 @@ message("Connected")
 message("Collecting tables")
 if (is.null(tables)){
   tables <- c("CameraLocations", "Detections", "Photos",
-    "Species","StudyAreas", "Visits","lkupAction", "lkupSeasons" )
+    "Species","StudyAreas", "Visits","lkupAction","lkupDetectionStatus",
+    "lkupSeasons", "lkupVisitTypes" )
 }
 
 uwin_data <- lapply(tables, FUN = function(x) {
@@ -81,4 +83,12 @@ format_detections <- function(uwin_data = NULL, only_verified = FALSE) {
   uwin_data$Detections <- detections
   print(oname)
   assign(oname, uwin_data, envir = .GlobalEnv)
+}
+
+
+datetime <- function(x) {
+  timedat <- strftime(x$VisitTime,  format="%H:%M:%S")
+  dtime <- as.POSIXct(paste(x$VisitDate, timedat),
+                      format="%Y-%m-%d %H:%M:%S")
+  return(dtime)
 }

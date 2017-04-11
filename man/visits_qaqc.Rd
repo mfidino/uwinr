@@ -32,7 +32,7 @@ Returns \code{uwin_data}, will stop if data is not correctly entered
 \examples{
 uwin_list <- visits_qaqc(uwin_data = uwin_list)
 
-# Even works without assigning the object
+# This function even works without assigning the object
 visits_qaqc(uwin_data = uwin_list)
 }
 \author{

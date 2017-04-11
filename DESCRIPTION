@@ -11,6 +11,11 @@ Encoding: UTF-8
 LazyData: true
 RoxygenNote: 6.0.1
 Depends:
-  data.table,
+  dtplyr,
   magrittr,
+  data.table,
   dplyr
+Imports:
+  RODBC,
+  lubridate
+  

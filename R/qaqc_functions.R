@@ -29,7 +29,7 @@
 #' visits_qaqc(uwin_data = uwin_list)
 #' @export
 #' @import data.table
-
+#'
 visits_qaqc <- function(uwin_data = NULL, stop_on_error = TRUE){
   if (!exists("Visits", uwin_data)){
     stop("The uwin data list does not include the Visits table,
@@ -51,7 +51,6 @@ visits_qaqc <- function(uwin_data = NULL, stop_on_error = TRUE){
       visits_log[Action2ID == "1"],{
       Action2ID <- Action1ID #Move Action1 number to Action2
       Action1ID <- "1" #Make Action1 a "1"
-
     })
   }
   # the above bit of script fixes the column if Action1 and Action2 are unique.
@@ -93,7 +92,7 @@ visits_log$SurveyID <- with(visits_log, {
   substr(lubridate::year(VisitDate),3,4), sep = "-")})
 
 # get only the actions and surveyID, and make it long format
-just_actions <- suppressWarnings(reshape2::melt(subset(visits_log,
+just_actions <- suppressWarnings(data.table::melt(subset(visits_log,
   select = grep("Action|SurveyID",
   names(visits_log))), id.vars = "SurveyID"))
 
@@ -210,4 +209,37 @@ assign(oname, uwin_data, envir = .GlobalEnv)
 
 }
 
+
+photos_qaqc <- function(uwin_data = NULL, stop_on_error = FALSE){
+  # check to make sure both tables are present
+  if (!exists("Visits", uwin_data) &
+      !exists("Photos", uwin_data)) {
+    which_missing <- c(exists("Visits", uwin_data),
+                       exists("Photos", uwin_data))
+    names(which_missing) <- c("Visits", "Photos")
+    if (sum(which_missing) == 2) {
+      which_missing <- paste(names(which_missing),
+                             collapse = " and ")
+    } else {
+      which_missing <- names(which_missing[which_missing == TRUE])
+    }
+    error_report <-
+      paste("\nThe uwin_data list does not include the ",
+            which_missing, " table(s).\nBoth Visits and Photos",
+            " must be included in the 'tables' arument of\ncollect_tables",
+            sep = "")
+    stop(error_report)
+  }
+
+  # merge photos and visits
+  varbs <- c("VisitDate", "VisitTime", "ActiveStart",
+            "ActiveEnd", "ImageDate", "ImageID", "SurveyID", "VisitTypeID")
+  phvi <- dplyr::left_join(uwin_data$Visits, uwin_data$Photos,
+                           by = "VisitID") %>%
+    dplyr::select(dplyr::one_of(varbs))
+
+  # get starts
+  starts <- phvi[phvi$VisitTypeID==3,]
+  ends <- phvi[phvi$VisitTypeID==1,]
+}
 

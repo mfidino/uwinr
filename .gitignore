@@ -81,3 +81,4 @@ $RECYCLE.BIN/
 # no txt or csv files
 *.csv
 *.txt
+.Rproj.user

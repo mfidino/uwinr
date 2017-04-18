@@ -1,16 +1,70 @@
+#' @title Quality assurance / quality control for UWIN database
+#'
+#' @description
+#' \code{do_qaqc} is a utility function that calls all other QA/QC functions
+#' that are available in \code{uwinr} for the tables that are loaded
+#' via \code{\link{collect_tables}}. Currently, the tables where QA/QC
+#' functions exist include: Visits (\code{\link{visits_qaqc}}) and
+#' Photos (\code{\link{photos_qaqc}}).
+#'
+#' @param uwin_data The list object returned from \code{\link{collect_tables}}.
+#'
+#' @return Returns the list object from \code{\link{collect_tables}}.
+#' Furthermore, this function will create a sub-folder in your
+#' working directory titled\code{error_reports} if it does not exist and
+#' populate thatsub-folder with an error report titled
+#' \code{error_report_DATE.txt} where
+#' \code{DATE} is the current date called via \code{\link{Sys.Date}}. This
+#' error report will describe potential issues with the data in your
+#' UWIN database and point you out to a number of csv files that further
+#' describe these errors.
+#'
+#' @author Mason Fidino
+#'
+#' @examples
+#' uwin_list <- collect_tables("UWIN_DB_CHIL.accdb")
+#' uwin_list <- do_qaqc(uwin_list)
+#'
+#' @export
+#'
+do_qaqc <- function(uwin_data = NULL) {
+
+  # create error name
+  dtime <- Sys.Date()
+  fpath<-paste0("./error_reports/error_report_", dtime,".txt")
+
+  uwinr:::create_error_file(fpath)
+
+  # create error file
+
+
+  # Do Visits check if it is in the table
+  if ("Visits" %in% names(uwin_data)) {
+  uwin_data <- visits_qaqc(uwin_data)
+  }
+
+}
+
+
+
+
 #' @title Check visits table for errors
 #'
 #' @description
 #' \code{visits_qaqc} looks for data entry errors in the visits table
-#'  in the UWIN database. This currently checks if the same action occurs
-#'  twice within a single visit, or if a camera is 'set' multiple
-#'  times in a single season.
+#'   in the UWIN database. This currently checks if the same action occurs
+#'   twice within a single visit, or if a camera is 'set' multiple
+#'   times in a single season.
 #'
 #' @param uwin_data The list object returned from \code{\link{collect_tables}}.
 #'   If the \code{Visits} table is not within this object an error will occur.
-#' @param stop_on_error A logical statement to determine if this function
-#'   stops when it finds any errors in the Visits table. Currently defaults to
-#'   \code{TRUE}.
+#' @param file_conn The file path in which to write errors to supplied
+#'   as a character string. This argument is managed automatically if
+#'   \code{\link{do_qaqc}} is called instead. If left \code{NULL} then
+#'   \code{visits_qaqc} will create a \code{error_reports} sub-folder
+#'   in the working directory and populate it with an error report titled
+#' \code{error_report_DATE.txt} where
+#' \code{DATE} is the current date called via \code{\link{Sys.Date}}
 #'
 #' @return Returns \code{uwin_data}, will stop if data is not correctly entered
 #'   and \code{stop_on_error} is \code{TRUE}.
@@ -28,9 +82,8 @@
 #' # This function even works without assigning the object
 #' visits_qaqc(uwin_data = uwin_list)
 #' @export
-#' @import data.table
 #'
-visits_qaqc <- function(uwin_data = NULL, stop_on_error = TRUE){
+visits_qaqc <- function(uwin_data = NULL, file_conn = NULL){
   if (!exists("Visits", uwin_data)){
     stop("The uwin data list does not include the Visits table,
       include 'Visits' in the 'tables' argument of collect_tables ")
@@ -87,9 +140,7 @@ visits_qaqc <- function(uwin_data = NULL, stop_on_error = TRUE){
 data.table::setkey(visits_log, Action1ID)
 
 # Look for duplicates
-visits_log$SurveyID <- with(visits_log, {
-  paste(LocationID, SeasonID,
-  substr(lubridate::year(VisitDate),3,4), sep = "-")})
+visits_log <- uwinr:::create_surveyID(visits_log)
 
 # get only the actions and surveyID, and make it long format
 just_actions <- suppressWarnings(data.table::melt(subset(visits_log,
@@ -143,30 +194,37 @@ if (nrow(to_check_extra_sixes)>0) {
 
 
 # posting errors
+if (is.null(file_conn)) {
+  dtime <- Sys.Date()
+  file_conn<-paste0("./error_reports/error_report_", dtime,".txt")
+}
+if (!file.exists(file_conn)) {
+  uwinr:::create_error_file(file_conn)
+}
 
 if (sum(errors) > 0) {
   # write the files where errors occur
   if (errors[1] == 1) {
     write.csv(visits_log[visits_log$Action2ID == "1",],
-      "Visits_action12_error.csv", row.names = FALSE)
+      "./error_reports/Visits_action12_error.csv", row.names = FALSE)
   }
   if (errors[2] == 1) {
     write.csv(visits_log[visits_log$Action3ID == "1",],
-      "Visits_action13_error.csv", row.names = FALSE)
+      "./error_reports/Visits_action13_error.csv", row.names = FALSE)
   }
   if (errors[3] == 1) {
     write.csv(x = to_check_extra_ones,
-      file = "multiple_camera_set_actions.csv",
+      file = "./error_reports/multiple_camera_set_actions.csv",
       row.names = FALSE)
   }
   if (errors[4] == 1) {
     write.csv(x = to_check_no_ones,
-      file = "absent_camera_set_actions.csv",
+      file = "./error_reports/absent_camera_set_actions.csv",
       row.names = FALSE)
   }
   if (errors[5] == 1) {
     write.csv(x = to_check_extra_sixes,
-      file = "camera_removed_twice.csv",
+      file = "./error_reports/camera_removed_twice.csv",
       row.names = FALSE)
   }
 
@@ -184,19 +242,16 @@ Check file 'absent_camera_set_actions.csv' in your working directory.\n",
 "\nThe 'Visits' table has a site where the camera was removed twice\nat a site within the same season.\n
 Check file 'camera_removed_twice.csv in your working directory.\n")
 
-  to_split <- paste(c("\n",rep("-", 50), "\n"), collapse = "")
+  to_spl <- paste(c("\n",rep("#", 50), "\n"), collapse = "")
   error_message <- paste("\nThere are", sum(errors),
     "different kinds of errors in the 'Visits' table.\nThese errors include:\n")
   message_to_print <- paste(error_message,
     paste(error_frame[which(errors == 1)],
-    collapse = to_split), collapse = "")
-
-  if (stop_on_error) {
-    message(message_to_print)
-    stop("Errors in Visits table. Scroll up in console to see all reported errors.")
-  } else {
-    message(message_to_print)
-  }
+    collapse = to_spl), collapse = "")
+    uwinr:::fwrt("\n---VISITS TABLE---\n", file_conn)
+    uwinr:::fwrt("Errors in the Visits table should be addressed", file_conn)
+    uwinr:::fwrt("before further summarizing your data.", file_conn)
+    uwinr:::fwrt(message_to_print, file_conn)
 } else {
   message("No errors in 'Visits' table.")
 }
@@ -230,16 +285,53 @@ photos_qaqc <- function(uwin_data = NULL, stop_on_error = FALSE){
             sep = "")
     stop(error_report)
   }
+  # format the time column in Visits
+  uwin_data$Visits$VisitTime <- format(uwin_data$Visits$VisitTime,
+    "%H:%M:%S")
+
+  # make a DateTime column
+  uwin_data$Visits$VisitDateTime <- as.POSIXct(paste(as.character(
+    uwin_data$Visits$VisitDate),
+    uwin_data$Visits$VisitTime))
+
+ # make SurveyID just in case visits_qaqc was not run.
+  if (!"SurveyID" %in%  colnames(uwin_data$Visits)) {
+    uwin_data$Visits <- uwinr:::create_surveyID(uwin_data$Visits)
+  }
 
   # merge photos and visits
-  varbs <- c("VisitDate", "VisitTime", "ActiveStart",
-            "ActiveEnd", "ImageDate", "ImageID", "SurveyID", "VisitTypeID")
+  varbs <- c("VisitTypeID","VisitDateTime", "ActiveStart",
+            "ActiveEnd", "ImageDate", "ImageID", "SurveyID" )
   phvi <- dplyr::left_join(uwin_data$Visits, uwin_data$Photos,
                            by = "VisitID") %>%
     dplyr::select(dplyr::one_of(varbs))
 
-  # get starts
-  starts <- phvi[phvi$VisitTypeID==3,]
-  ends <- phvi[phvi$VisitTypeID==1,]
+  #-------------
+  ### QAQC ERROR: Photos occured > 1 month from camera set
+  #-------------
+
+  # get the start times
+
+  starts_b4_set <- uwinr:::create_time_check(phvi, start = TRUE)
+
+ # create a table if there are issues
+  if (nrow(starts_b4_set) > 0) {
+    data.table::setkey(starts_b4_set, SurveyID, ImageID)
+    start_summary <- uwinr:::create_photo_time_summary(starts_b4_set)
+    write.csv(start_summary, "imageDate_start_before_camera_set.csv",
+      row.names = FALSE)
+  }
+
+  ends_aft_pull <- uwinr:::create_time_check(phvi, start = FALSE)
+
+  if (nrow(ends_aft_pull) > 0) {
+    data.table::setkey(ends_aft_pull, SurveyID, ImageID)
+    end_summary <- uwinr:::create_photo_time_summary(ends_aft_pull)
+    write.csv(end_summary, "imageDate_after_camera_pull.csv",
+      row.names = FALSE)
+  }
+
+
 }
+
 

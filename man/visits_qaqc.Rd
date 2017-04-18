@@ -4,15 +4,19 @@
 \alias{visits_qaqc}
 \title{Check visits table for errors}
 \usage{
-visits_qaqc(uwin_data = NULL, stop_on_error = TRUE)
+visits_qaqc(uwin_data = NULL, file_conn = NULL)
 }
 \arguments{
 \item{uwin_data}{The list object returned from \code{\link{collect_tables}}.
 If the \code{Visits} table is not within this object an error will occur.}
 
-\item{stop_on_error}{A logical statement to determine if this function
-stops when it finds any errors in the Visits table. Currently defaults to
-\code{TRUE}.}
+\item{file_conn}{The file path in which to write errors to supplied
+  as a character string. This argument is managed automatically if
+  \code{\link{do_qaqc}} is called instead. If left \code{NULL} then
+  \code{visits_qaqc} will create a \code{error_reports} sub-folder
+  in the working directory and populate it with an error report titled
+\code{error_report_DATE.txt} where
+\code{DATE} is the current date called via \code{\link{Sys.Date}}}
 }
 \value{
 Returns \code{uwin_data}, will stop if data is not correctly entered
@@ -25,9 +29,9 @@ Returns \code{uwin_data}, will stop if data is not correctly entered
 }
 \description{
 \code{visits_qaqc} looks for data entry errors in the visits table
- in the UWIN database. This currently checks if the same action occurs
- twice within a single visit, or if a camera is 'set' multiple
- times in a single season.
+  in the UWIN database. This currently checks if the same action occurs
+  twice within a single visit, or if a camera is 'set' multiple
+  times in a single season.
 }
 \examples{
 uwin_list <- visits_qaqc(uwin_data = uwin_list)

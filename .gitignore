@@ -77,8 +77,10 @@ $RECYCLE.BIN/
 
 # don't publish access database
 *.accdb
+*.laccdb
 
 # no txt or csv files
 *.csv
 *.txt
 .Rproj.user
+

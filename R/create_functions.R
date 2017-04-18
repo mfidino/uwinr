@@ -60,7 +60,7 @@ create_error_file <- function(file_conn = NULL) {
   if (!"./error_reports" %in% list.dirs()) {
     dir.create("./error_reports")
   }
-  file(file_conn, open = "wt")
+  close(file(file_conn, open = "wt"))
   to_split <- paste(rep("-", 50), collapse = "")
   uwinr:::fwrt(to_split, file_conn)
   uwinr:::fwrt(paste("Error report:", dtime), file_conn)

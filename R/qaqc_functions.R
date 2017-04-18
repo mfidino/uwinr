@@ -28,6 +28,7 @@
 #' @export
 #'
 do_qaqc <- function(uwin_data = NULL) {
+  oname <- deparse(substitute(uwin_data))
 
   # create error name
   dtime <- Sys.Date()
@@ -35,13 +36,16 @@ do_qaqc <- function(uwin_data = NULL) {
 
   uwinr:::create_error_file(fpath)
 
-  # create error file
-
-
-  # Do Visits check if it is in the table
+  # Do Visits check if it is in uwin_data
   if ("Visits" %in% names(uwin_data)) {
-  uwin_data <- visits_qaqc(uwin_data)
+  uwin_data <- visits_qaqc(uwin_data, fpath)
   }
+
+  # Do photos check if it is in uwin_data
+  if ("Photos" %in% names(uwin_data)) {
+    uwin_data <- photos_qaqc(uwin_data, fpath)
+  }
+  assign(oname, uwin_data, envir = .GlobalEnv)
 
 }
 
@@ -79,8 +83,6 @@ do_qaqc <- function(uwin_data = NULL) {
 #' @examples
 #' uwin_list <- visits_qaqc(uwin_data = uwin_list)
 #'
-#' # This function even works without assigning the object
-#' visits_qaqc(uwin_data = uwin_list)
 #' @export
 #'
 visits_qaqc <- function(uwin_data = NULL, file_conn = NULL){
@@ -200,6 +202,7 @@ if (is.null(file_conn)) {
 }
 if (!file.exists(file_conn)) {
   uwinr:::create_error_file(file_conn)
+  close(file_conn)
 }
 
 if (sum(errors) > 0) {
@@ -258,14 +261,13 @@ Check file 'camera_removed_twice.csv in your working directory.\n")
 #e1
 
 # get object name of what was included into the function
-oname <- deparse(substitute(uwin_data))
 uwin_data$Visits <- visits_log
-assign(oname, uwin_data, envir = .GlobalEnv)
-
+return(uwin_data)
 }
 
+# add help stuff to this tomorrow
 
-photos_qaqc <- function(uwin_data = NULL, stop_on_error = FALSE){
+photos_qaqc <- function(uwin_data = NULL, file_conn = NULL){
   # check to make sure both tables are present
   if (!exists("Visits", uwin_data) &
       !exists("Photos", uwin_data)) {
@@ -309,29 +311,73 @@ photos_qaqc <- function(uwin_data = NULL, stop_on_error = FALSE){
   #-------------
   ### QAQC ERROR: Photos occured > 1 month from camera set
   #-------------
-
+  errors <- rep(0, 2)
   # get the start times
 
   starts_b4_set <- uwinr:::create_time_check(phvi, start = TRUE)
-
  # create a table if there are issues
   if (nrow(starts_b4_set) > 0) {
     data.table::setkey(starts_b4_set, SurveyID, ImageID)
     start_summary <- uwinr:::create_photo_time_summary(starts_b4_set)
-    write.csv(start_summary, "imageDate_start_before_camera_set.csv",
+    write.csv(start_summary,
+      "./error_reports/imageDate_start_before_camera_set.csv",
       row.names = FALSE)
+    errors[1] <- 1
   }
-
+  #-------------
+  ### QAQC ERROR: Photos occured > 1 month from camera pull
+  #-------------
   ends_aft_pull <- uwinr:::create_time_check(phvi, start = FALSE)
 
   if (nrow(ends_aft_pull) > 0) {
     data.table::setkey(ends_aft_pull, SurveyID, ImageID)
     end_summary <- uwinr:::create_photo_time_summary(ends_aft_pull)
-    write.csv(end_summary, "imageDate_after_camera_pull.csv",
+    write.csv(end_summary, "./error_reports/imageDate_after_camera_pull.csv",
       row.names = FALSE)
+    errors[2] <- 1
   }
 
+  # error posting
+  if (is.null(file_conn)) {
+    dtime <- Sys.Date()
+    file_conn<-paste0("./error_reports/error_report_", dtime,".txt")
+  }
+  if (!file.exists(file_conn)) {
+    uwinr:::create_error_file(file_conn)
+    close(file_conn)
+  }
 
+  if(sum(errors)>0) {
+    to_split <- paste(rep("-", 50), collapse = "")
+
+    uwinr:::fwrt("\n --- PHOTOS TABLE ---\n", file_conn)
+    to_add <- c("These errors should be fixed if possible (e.g., date set wrong)",
+      "but will be censored when data are further summarized\n")
+    uwinr:::fwrt(paste(to_add, collapse = "\n"), file_conn)
+    if(errors[1] == 1) {
+      ereport <- c("There are images in the 'Photos' table with timestamps that",
+         "are 30 days earlier than the date that the camera was 'set' in",
+         "the 'Visits' table. Check file 'imageDate_start_before_camera_set.csv'",
+         "in the error_reports sub-folder of your working directory to see",
+         "the ImageID's causing this error.")
+      uwinr:::fwrt(paste(ereport, collapse = "\n"), file_conn)
+      if (sum(errors)>1) {
+        to_spl <- paste(c("\n", rep("#", 50), "\n"), collapse = "")
+        uwinr:::fwrt(to_spl, file_conn)
+      }
+    }
+    if(errors[2] == 1) {
+       ereport <- c("There are images in the 'Photos' table with timestamps that",
+         "are 30 days later than the date that the camera was 'pulled' in",
+         "the 'Visits' table. Check file 'imageDate_after_camera_pull.csv'",
+         "in the error_reports sub-folder of your working directory to see",
+         "the ImageID's causing this error.")
+       uwinr:::fwrt(paste(ereport, collapse = "\n"), file_conn)
+    }
+    to_spl <- paste(c("\n", rep("-", 50), "\n"), collapse = "")
+    uwinr:::fwrt(to_spl, file_conn)
+  }
+return(uwin_data)
 }
 
 

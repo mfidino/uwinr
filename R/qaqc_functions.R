@@ -27,7 +27,7 @@
 #'
 #' @export
 #'
-do_qaqc <- function(uwin_data = NULL) {
+do_qaqc <- function(uwin_data = NULL, show_error_file = TRUE) {
   oname <- deparse(substitute(uwin_data))
 
   # create error name
@@ -45,17 +45,20 @@ do_qaqc <- function(uwin_data = NULL) {
   if ("Photos" %in% names(uwin_data)) {
     uwin_data <- photos_qaqc(uwin_data, fpath)
   }
+
+  if(show_error_file) {
+    file.edit(fpath)
+  }
   assign(oname, uwin_data, envir = .GlobalEnv)
 
 }
 
 
 
-
-#' @title Check visits table for errors
+#' @title Check 'Visits' table for errors
 #'
 #' @description
-#' \code{visits_qaqc} looks for data entry errors in the visits table
+#' \code{visits_qaqc} looks for data entry errors in the 'Visits' table
 #'   in the UWIN database. This currently checks if the same action occurs
 #'   twice within a single visit, or if a camera is 'set' multiple
 #'   times in a single season.
@@ -81,6 +84,10 @@ do_qaqc <- function(uwin_data = NULL) {
 #' @author Mason Fidino
 #'
 #' @examples
+#' # read in the data
+#' uwin_list <- collect_tables("UWIN_DB_CHIL.accdb")
+#'
+#' # apply qaqc to 'Visits' table
 #' uwin_list <- visits_qaqc(uwin_data = uwin_list)
 #'
 #' @export
@@ -202,7 +209,6 @@ if (is.null(file_conn)) {
 }
 if (!file.exists(file_conn)) {
   uwinr:::create_error_file(file_conn)
-  close(file_conn)
 }
 
 if (sum(errors) > 0) {
@@ -245,7 +251,7 @@ Check file 'absent_camera_set_actions.csv' in your working directory.\n",
 "\nThe 'Visits' table has a site where the camera was removed twice\nat a site within the same season.\n
 Check file 'camera_removed_twice.csv in your working directory.\n")
 
-  to_spl <- paste(c("\n",rep("#", 50), "\n"), collapse = "")
+  to_spl <- uwinr:::create_split("#")
   error_message <- paste("\nThere are", sum(errors),
     "different kinds of errors in the 'Visits' table.\nThese errors include:\n")
   message_to_print <- paste(error_message,
@@ -255,17 +261,46 @@ Check file 'camera_removed_twice.csv in your working directory.\n")
     uwinr:::fwrt("Errors in the Visits table should be addressed", file_conn)
     uwinr:::fwrt("before further summarizing your data.", file_conn)
     uwinr:::fwrt(message_to_print, file_conn)
+    uwinr:::fwrt(uwinr:::create_split("-"), file_conn)
 } else {
+  uwinr:::fwrt("\n---VISITS TABLE---\n", file_conn)
+  uwinr:::fwrt("No errors in 'Visits' table", file_conn)
+  uwinr:::fwrt(uwinr:::create_split("-"), file_conn)
   message("No errors in 'Visits' table.")
 }
-#e1
 
 # get object name of what was included into the function
 uwin_data$Visits <- visits_log
 return(uwin_data)
 }
 
-# add help stuff to this tomorrow
+
+#' @title Check 'Photos' table for errors
+#'
+#' @description \code{photos_qaqc} looks for errors in the timestamps of
+#'   the photos uploaded into the UWIN database. The 'Visits' table must
+#'   also be present in the list object supplied by \code{\link{collect_tables}}
+#'   as the timestamps are compared to the set and pull records in this table.
+#'
+#' @param uwin_data The list object returned from \code{\link{collect_tables}}.
+#'   If the \code{Photos} and \code{Visits} table is not within this object
+#'   an error will occur.
+#' @param file_conn The file path in which to write errors to supplied
+#'   as a character string. This argument is managed automatically if
+#'   \code{\link{do_qaqc}} is called instead. If left \code{NULL} then
+#'   \code{visits_qaqc} will create a \code{error_reports} sub-folder
+#'   in the working directory and populate it with an error report titled
+#' \code{error_report_DATE.txt} where
+#' \code{DATE} is the current date called via \code{\link{Sys.Date}}
+#'
+#' @author Mason Fidino
+#'
+#' @examples
+#' # read in the data
+#' uwin_list <- collect_tables("UWIN_DB_CHIL.accdb")
+#'
+#' # conduct qaqc on 'Photos' table
+#' uwin_list <- photos_qaqc(uwin_list)
 
 photos_qaqc <- function(uwin_data = NULL, file_conn = NULL){
   # check to make sure both tables are present
@@ -348,7 +383,7 @@ photos_qaqc <- function(uwin_data = NULL, file_conn = NULL){
   }
 
   if(sum(errors)>0) {
-    to_split <- paste(rep("-", 50), collapse = "")
+    to_spl <- uwinr:::create_split("-", FALSE)
 
     uwinr:::fwrt("\n --- PHOTOS TABLE ---\n", file_conn)
     to_add <- c("These errors should be fixed if possible (e.g., date set wrong)",
@@ -362,8 +397,7 @@ photos_qaqc <- function(uwin_data = NULL, file_conn = NULL){
          "the ImageID's causing this error.")
       uwinr:::fwrt(paste(ereport, collapse = "\n"), file_conn)
       if (sum(errors)>1) {
-        to_spl <- paste(c("\n", rep("#", 50), "\n"), collapse = "")
-        uwinr:::fwrt(to_spl, file_conn)
+        uwinr:::fwrt(uwinr:::create_split("#", TRUE), file_conn)
       }
     }
     if(errors[2] == 1) {
@@ -374,8 +408,12 @@ photos_qaqc <- function(uwin_data = NULL, file_conn = NULL){
          "the ImageID's causing this error.")
        uwinr:::fwrt(paste(ereport, collapse = "\n"), file_conn)
     }
-    to_spl <- paste(c("\n", rep("-", 50), "\n"), collapse = "")
-    uwinr:::fwrt(to_spl, file_conn)
+    uwinr:::fwrt(uwinr:::create_split("-"), file_conn)
+  } else {
+    uwinr:::fwrt("\n---PHOTOS TABLE---\n", file_conn)
+    uwinr:::fwrt("No errors in 'Photos' table", file_conn)
+    uwinr:::fwrt(uwinr:::create_split("-"), file_conn)
+    message("No errors in 'Photos' table.")
   }
 return(uwin_data)
 }

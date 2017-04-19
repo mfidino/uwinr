@@ -2,7 +2,7 @@
 % Please edit documentation in R/qaqc_functions.R
 \name{visits_qaqc}
 \alias{visits_qaqc}
-\title{Check visits table for errors}
+\title{Check 'Visits' table for errors}
 \usage{
 visits_qaqc(uwin_data = NULL, file_conn = NULL)
 }
@@ -28,16 +28,18 @@ Returns \code{uwin_data}, will stop if data is not correctly entered
   \code{"449-4-17"}).
 }
 \description{
-\code{visits_qaqc} looks for data entry errors in the visits table
+\code{visits_qaqc} looks for data entry errors in the 'Visits' table
   in the UWIN database. This currently checks if the same action occurs
   twice within a single visit, or if a camera is 'set' multiple
   times in a single season.
 }
 \examples{
+# read in the data
+uwin_list <- collect_tables("UWIN_DB_CHIL.accdb")
+
+# apply qaqc to 'Visits' table
 uwin_list <- visits_qaqc(uwin_data = uwin_list)
 
-# This function even works without assigning the object
-visits_qaqc(uwin_data = uwin_list)
 }
 \author{
 Mason Fidino

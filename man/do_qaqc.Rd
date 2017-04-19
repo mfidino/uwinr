@@ -4,7 +4,7 @@
 \alias{do_qaqc}
 \title{Quality assurance / quality control for UWIN database}
 \usage{
-do_qaqc(uwin_data = NULL)
+do_qaqc(uwin_data = NULL, show_error_file = TRUE)
 }
 \arguments{
 \item{uwin_data}{The list object returned from \code{\link{collect_tables}}.}

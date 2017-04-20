@@ -50,7 +50,9 @@ create_photo_time_summary <- function(x = NULL) {
     dplyr::group_by(SurveyID, lags) %>%
     dplyr::summarise(FirstID = min(ImageID),
       LastID = max(ImageID), N_errors = length(ImageID)) %>%
-    dplyr::mutate(InSequence = (LastID - (FirstID - 1)) == N_errors)
+    dplyr::mutate(InSequence = (LastID - (FirstID - 1)) == N_errors) %>%
+    dplyr::select(dplyr::one_of(c("SurveyID", "FirstID", "LastID",
+      "N_errors")))
   return(ans)
 }
 
@@ -63,7 +65,7 @@ create_error_file <- function(file_conn = NULL) {
   close(file(file_conn, open = "wt"))
   to_split <- paste(rep("-", 50), collapse = "")
   uwinr:::fwrt(to_split, file_conn)
-  uwinr:::fwrt(paste("Error report:", dtime), file_conn)
+  uwinr:::fwrt(paste("Error report:", Sys.Date()), file_conn)
   uwinr:::fwrt(to_split, file_conn)
 }
 

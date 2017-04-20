@@ -43,7 +43,6 @@ if (grep("accdb", database)!= 1) {
 }
 message("Connecting to UWIN database")
 uwin <- RODBC::odbcConnectAccess2007(database)
-message("Connected")
 message("Collecting tables")
 if (is.null(tables)){
   tables <- c("CameraLocations", "Detections", "Photos",

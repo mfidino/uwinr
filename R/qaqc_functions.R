@@ -31,8 +31,7 @@ do_qaqc <- function(uwin_data = NULL, show_error_file = TRUE) {
   oname <- deparse(substitute(uwin_data))
 
   # create error name
-  dtime <- Sys.Date()
-  fpath<-paste0("./error_reports/error_report_", dtime,".txt")
+  fpath<-paste0("./error_reports/error_report_", Sys.Date(),".txt")
 
   uwinr:::create_error_file(fpath)
 
@@ -46,11 +45,18 @@ do_qaqc <- function(uwin_data = NULL, show_error_file = TRUE) {
     uwin_data <- photos_qaqc(uwin_data, fpath)
   }
 
+  if(length(readLines(fpath)) == 17) {
+    message("\nNo errors found\n")
+    assign(oname, uwin_data, envir = .GlobalEnv)
+  } else {
+  message("do_qaqc finished, check error report for problems.\nIf show_error_file = TRUE (the default) than this will open automatically.\nIf not, look in error_reports subfolder")
+
   if(show_error_file) {
     file.edit(fpath)
   }
-  assign(oname, uwin_data, envir = .GlobalEnv)
 
+  assign(oname, uwin_data, envir = .GlobalEnv)
+  }
 }
 
 
@@ -59,9 +65,7 @@ do_qaqc <- function(uwin_data = NULL, show_error_file = TRUE) {
 #'
 #' @description
 #' \code{visits_qaqc} looks for data entry errors in the 'Visits' table
-#'   in the UWIN database. This currently checks if the same action occurs
-#'   twice within a single visit, or if a camera is 'set' multiple
-#'   times in a single season.
+#'   in the UWIN database.
 #'
 #' @param uwin_data The list object returned from \code{\link{collect_tables}}.
 #'   If the \code{Visits} table is not within this object an error will occur.
@@ -201,6 +205,54 @@ if (nrow(to_check_extra_sixes)>0) {
   errors <- c(errors, 0)
 }
 
+#-------------
+### QAQC ERROR 6: Camera only has < 2 or > 3 rows per season
+#-------------
+
+sids <- table(visits_log$SurveyID)
+
+# less than 2
+lt2 <- names(sids)[which(sids < 2)]
+
+# more than 3
+mt3 <- names(sids)[which(sids > 3)]
+
+if (length(lt2) > 0 | length(mt3) > 0) {
+  errors <- c(errors, 1)
+  to_check_row_error <- c(lt2, mt3)
+} else {
+  errors <- c(errors, 0)
+}
+#-------------
+### QAQC ERROR 7: camera set date < camera check date < camera pull date
+#-------------
+
+# note, VisitTypeID is 1 = pull, 2, = check, 3 = set. Thus,
+# when we order by VisitTypeID everything is backwards and we want
+# to make sure that the visit dates are actually decreasing.
+data.table::setkey(visits_log, SurveyID, VisitTypeID)
+
+check_decrease <- visits_log %>% dplyr::group_by(SurveyID) %>%
+  dplyr::mutate(DatesIncreasing = any(diff(VisitDate) > 0),
+    IDDecreasing = any(diff(VisitTypeID) < 0)) %>%
+  dplyr::select(dplyr::one_of(c("SurveyID", "DatesIncreasing",
+    "IDDecreasing"))) %>%
+  dplyr::distinct()
+
+# If VisitID is not increasing we have some weird type of error.
+if (sum(check_decrease$IDDecreasing) > 0) {
+  emes <- c(" There is an error with the VisitTypeID column in the",
+    "\t'Visits' table. You have possibly set it as a factor. Please reload",
+    "\tthe data and attempt qaqc again.")
+  stop(paste(emes, collapse = "\n"))
+}
+if (sum(check_decrease$DatesIncreasing) > 0) {
+  errors <- c(errors, 1)
+  vdate_errors <- visits_log[which(visits_log$SurveyID %in%
+      check_decrease$SurveyID[check_decrease$DatesIncreasing == TRUE]),]
+} else {
+  errors <- c(errors, 0)
+}
 
 # posting errors
 if (is.null(file_conn)) {
@@ -235,25 +287,44 @@ if (sum(errors) > 0) {
     write.csv(x = to_check_extra_sixes,
       file = "./error_reports/camera_removed_twice.csv",
       row.names = FALSE)
+
+  }
+  if (errors[6] == 1) {
+    write.csv(x = to_check_row_error,
+        file = "./error_reports/site_season_with_1_or_4plus_records.csv",
+        row.names = FALSE)
+  }
+  if (errors[7] == 1) {
+    write.csv(x = vdate_errors,
+      file = "./error_reports/visit_dates_entered_out_of_order.csv",
+      row.names = FALSE)
   }
 
 # some text for the error messages
   error_frame <-  c(
-"\nThere are rows where Action2ID equals Action1ID during a single\nvisit in the 'Visits' table.\nCheck file 'Visits_action12_error.csv' in your working\ndirectory.\n",
+"\nThere are rows where Action2ID equals Action1ID during a single\nvisit in the 'Visits' table.\n
+Check file 'Visits_action12_error.csv' in error_reports.\n",
 
-"\nThere are rows where Action3ID equals Action1ID during a single\nvisit in the 'Visits' table. Check file 'Visits_action13_error.csv' in your working\n directory.\n",
+"\nThere are rows where Action3ID equals Action1ID during a single\nvisit in the 'Visits' table.\n
+Check file 'Visits_action13_error.csv' in error_reports.\n",
 
-"\nThe 'Visits' table has a camera 'set' multiple times at a site within\na season.\nCheck file 'multiple_camera_set_actions.csv' in your working\ndirectory.\n",
+"\nThe 'Visits' table has a camera 'set' multiple times at a site within\na season.\nCheck file 'multiple_camera_set_actions.csv' in error_reports.\n",
 
 "\nThe 'Visits' table has a site where other actions were taken\nbut the camera was never 'set'.\n
-Check file 'absent_camera_set_actions.csv' in your working directory.\n",
+Check file 'absent_camera_set_actions.csv' in error_reports.\n",
 
 "\nThe 'Visits' table has a site where the camera was removed twice\nat a site within the same season.\n
-Check file 'camera_removed_twice.csv in your working directory.\n")
+Check file 'camera_removed_twice.csv in error_reports.\n",
+
+"\nThe 'Visits' table has a site where there is < 2 or > 3 records for\na season (should be between 2 and 3).\n
+Check file 'site_season_with_1_or_4plus_records.csv' in error_reports.\n",
+
+"\nThe 'Visits' table has instances when the the VisitDate does not\nincrease from camera set to check to pull.\n
+Check file 'visit_dates_entered_out_of_order.csv' in error_reports.\n")
 
   to_spl <- uwinr:::create_split("#")
-  error_message <- paste("\nThere are", sum(errors),
-    "different kinds of errors in the 'Visits' table.\nThese errors include:\n")
+  error_message <- paste("\nThere are/is", sum(errors),
+    "kind(s) of errors in the 'Visits' table.\nThese errors include:\n")
   message_to_print <- paste(error_message,
     paste(error_frame[which(errors == 1)],
     collapse = to_spl), collapse = "")
@@ -266,7 +337,6 @@ Check file 'camera_removed_twice.csv in your working directory.\n")
   uwinr:::fwrt("\n---VISITS TABLE---\n", file_conn)
   uwinr:::fwrt("No errors in 'Visits' table", file_conn)
   uwinr:::fwrt(uwinr:::create_split("-"), file_conn)
-  message("No errors in 'Visits' table.")
 }
 
 # get object name of what was included into the function
@@ -374,8 +444,7 @@ photos_qaqc <- function(uwin_data = NULL, file_conn = NULL){
 
   # error posting
   if (is.null(file_conn)) {
-    dtime <- Sys.Date()
-    file_conn<-paste0("./error_reports/error_report_", dtime,".txt")
+    file_conn<-paste0("./error_reports/error_report_", Sys.Date(),".txt")
   }
   if (!file.exists(file_conn)) {
     uwinr:::create_error_file(file_conn)
@@ -413,7 +482,6 @@ photos_qaqc <- function(uwin_data = NULL, file_conn = NULL){
     uwinr:::fwrt("\n---PHOTOS TABLE---\n", file_conn)
     uwinr:::fwrt("No errors in 'Photos' table", file_conn)
     uwinr:::fwrt(uwinr:::create_split("-"), file_conn)
-    message("No errors in 'Photos' table.")
   }
 return(uwin_data)
 }

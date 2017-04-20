@@ -29,9 +29,7 @@ Returns \code{uwin_data}, will stop if data is not correctly entered
 }
 \description{
 \code{visits_qaqc} looks for data entry errors in the 'Visits' table
-  in the UWIN database. This currently checks if the same action occurs
-  twice within a single visit, or if a camera is 'set' multiple
-  times in a single season.
+  in the UWIN database.
 }
 \examples{
 # read in the data

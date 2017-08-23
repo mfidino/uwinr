@@ -2,10 +2,12 @@
 
 create_surveyID <- function(x = NULL){
   if (!"SurveyID" %in% colnames(x)) {
+    #season_switch <- c(2, 3, 4, 1)
     x$SurveyID <- with(x, {
       paste(LocationID, SeasonID,
         substr(data.table::year(VisitDate),3,4), sep = "-")})
   }
+
   return(x)
 }
 
@@ -82,35 +84,284 @@ create_split <- function(x = NULL, addn = TRUE) {
   return(to_spl)
 }
 
-create_possible_days <- function(x = NULL) {
-  visits <- x$Visits
-
-  # camera condition 1 the whole time
-  perfects <- visits %>% dplyr::group_by(SurveyID) %>%
-    dplyr::summarise(nchck = length(CameraConditionID),
-                     nones = sum(CameraConditionID == 1)) %>%
-    dplyr::filter(nones == nchck)
+create_possible_days <- function(x = NULL, binomial_detections = TRUE,
+  drop_tails = FALSE) {
 
 
+  # We are going to create the active days based off of the ActiveStart
+  # and ActiveEnd columns that are in the visits table. However,
+  # we want to make sure the dates are within some margin
+  # of the actual visits.
+
+  # connect the perfect SurveyID's in Visits to the photos table.
+  # We omit sites that have zero photos and camera sets.
+  # Note: We will need camera sets later though, but they are
+  #       already in the visits table
+  photoID <- x$Visits %>%
+    dplyr::select(dplyr::one_of(c("SurveyID", "VisitID", "VisitDateTime",
+      "ActiveStart", "ActiveEnd", "VisitTypeID"))) %>%
+    na.omit
 
 
-  y <- uwin_data$Photos
+  # split into checks and pull
+  checks <- photoID[VisitTypeID == 2]
+  pulls  <- photoID[VisitTypeID == 1]
 
- test <-  y %>% dplyr::group_by(VisitID) %>%
-    dplyr::mutate(Start = min(ImageDate),
-                  End = max(ImageDate)) %>%
-    dplyr::select(dplyr::one_of(c("Start", "End", "VisitID"))) %>%
+  # if we have checks make a checks_list
+  if (nrow(checks) > 1) {
+    days_check <- vector("list", nrow(checks))
+    for (i in 1:nrow(checks)){
+      # make sequence of days from active start to end
+      days_check[[i]] <- seq(checks$ActiveStart[i],
+                             checks$ActiveEnd[i], by = "1 day")
+    }
+    names(days_check) <- checks$SurveyID # sid to each list
+    days_check <- sapply(days_check, format, format = "%Y-%m-%d") %>%
+      sapply(.,as.POSIXct) # date/time to date
+  }
+
+  # make a pulls_list.
+  days_pull <- vector("list", nrow(pulls))
+  for (i in 1:nrow(pulls)){ # see comments above
+    days_pull[[i]] <- seq(pulls$ActiveStart[i],
+                          pulls$ActiveEnd[i], by = "1 day")
+  }
+  names(days_pull) <- pulls$SurveyID
+  days_pull <- sapply(days_pull, format, format = "%Y-%m-%d") %>%
+    sapply(.,as.POSIXct)
+
+  # if no checks make pull = check (gets removed later)
+  if (nrow(checks) == 0) {
+    days_check <- days_pull
+
+  }
+  # combine the two lists
+
+    check_key <- names(days_check) # sids on check
+    pull_key <- names(days_pull) # sids on pull
+    both_key <- pull_key[pull_key %in% check_key] # sids in both
+    just_pull <- pull_key[-which(pull_key %in% check_key)] # sids only in pull
+    just_check <- check_key[-which(check_key %in% pull_key)] # sids in check
+    both_list <- vector("list", # list for all dates
+      length = length(both_key) + length(just_pull) + length(just_check))
+    names(both_list) <- unique(photoID$SurveyID) # name it based off of photoID
+
+    # fill up both_list when data in check and pull
+    for (i in 1:length(both_key)) {
+      both_list[[both_key[i]]] <- c(unlist(days_check[both_key[i]][[1]]),
+        unlist(days_pull[both_key[i]][[1]]))
+    }
+
+    # if there are more pulls then checks, fill those in
+    if( length( just_pull ) > 0 ) {
+    for ( i in 1:length( just_pull ) ) {
+      both_list[[just_pull[i]]] <- days_pull[just_pull[i]][[1]]
+    }}
+    # if there are any checks w/o pulls, fill those in
+    if ( length( just_check ) > 0 ) {
+      for ( i in 1:length( just_check ) ) {
+        both_list[[just_check[i]]] <- days_check[just_check[i]][[1]]
+      }
+    }
+
+    # remove duplicate days and sort earliest to latest date
+    for( i in 1:length( both_list ) ) {
+      if( sum( duplicated( both_list[[i]] ) ) >  0 ) { # if duplicates
+      both_list[[i]] <- sort( both_list[[i]][-which(
+        duplicated( both_list[[i]] )==TRUE)] )
+      } else { # if no duplicates
+        both_list[[i]] <- sort( both_list[[i]] )
+      }
+    }
+
+  # melt list to dataframe
+ days_long <- reshape2::melt(both_list)
+  # make it wide
+ days_wide <- reshape2::dcast(data = days_long, formula = L1 ~ value,
+   fun.aggregate = length)
+ # make rownames the surveyID
+ row.names(days_wide) <- days_wide$L1
+ # remove the L1 columns, which is just the surveyID repeated
+ days_wide <- days_wide[-which(colnames(days_wide) == "L1")]
+ # this would be a bernoulli matrix for a single season for detections
+ obs_mat <- list(mat = days_wide, days_active = colnames(days_wide) )
+ colnames(obs_mat$mat) = 1:ncol(obs_mat$mat)
+
+
+ # Remove data that is a week before camera set or after camera pull.
+ if(drop_tails) {
+   min_max <- x$Visits %>%
+     dplyr::mutate(sea_yr = substr(SurveyID,5,8)) %>%
+     dplyr::group_by(sea_yr) %>%
+     dplyr::mutate(min_vis = min(VisitDate), max_vis = max(VisitDate)) %>%
+     dplyr::select(dplyr::one_of(c("sea_yr", "min_vis", "max_vis"))) %>%
+     dplyr::distinct(.) %>%
+     mutate(min_thresh = min_vis - as.difftime(7, units = "days"),
+            max_thresh = max_vis + as.difftime(7, units = "days")) %>%
+     dplyr::select(dplyr::one_of(c("sea_yr", "min_thresh", "max_thresh")))
+
+   min_max_obs <- data.table(sea_yr = unique(substr(row.names(obs_mat$mat),5,8)),
+                             min_obs = min(obs_mat$days_active),
+                             max_obs = max(obs_mat$days_active))
+   joined_thresh <- dplyr::left_join(min_max, min_max_obs, by = "sea_yr" ) %>%
+     mutate( flag_min = min_obs < min_thresh,
+             flag_max = max_obs > max_thresh)
+
+
+   if( sum( joined_thresh$flag_min ) > 0 ) {
+
+     sea_yr_to_change <- joined_thresh$sea_yr[ which( joined_thresh$flag_min > 0) ]
+
+     for( i in 1: length( sea_yr_to_change ) ) {
+       rows_2_change <- grep(sea_yr_to_change[i], row.names(obs_mat$mat))
+
+       one_thresh <- joined_thresh[joined_thresh$sea_yr == sea_yr_to_change[i],]
+       cols_to_cut <- which( obs_mat$days_active < one_thresh$min_thresh)
+       obs_mat$mat <- obs_mat$mat[,-cols_to_cut]
+       obs_mat$days_active <- obs_mat$days_active[-cols_to_cut]
+     }
+   }
+
+   if( sum( joined_thresh$flag_max ) > 0 ) {
+     sea_yr_to_change <- joined_thresh$sea_yr[ which( joined_thresh$flag_max > 0) ]
+
+     for( i in 1: length( sea_yr_to_change ) ) {
+       rows_2_change <- grep(sea_yr_to_change[i], row.names(obs_mat$mat))
+
+       one_thresh <- joined_thresh[joined_thresh$sea_yr == sea_yr_to_change[i],]
+       cols_to_cut <- which( obs_mat$days_active > one_thresh$max_thresh)
+       obs_mat$mat <- obs_mat$mat[,-cols_to_cut]
+       obs_mat$days_active <- obs_mat$days_active[-cols_to_cut]
+     }
+   }
+
+   if ( with( joined_thresh, sum( flag_min, flag_max) ) > 0 ) {
+     warning("There are sampling days that were removed because they
+were > 7 days before the first recorded camera set for a sampling season or
+> 7 days after the last recorded camera pull.")
+
+     if(binomial_detections == TRUE) {
+       obs_mat$mat <- rowSums(obs_mat$mat)
+     }
+
+     return(obs_mat)
+   }
+
+
+ }
+
+
+ # Check to see if the number of obs > 45
+ if(ncol(obs_mat$mat) > 45) {
+   warning("One of your sampling seasons has > 45 days. Check to make sure
+that the date/time data on your images is correct.")
+ }
+
+
+
+
+ # Check to
+
+ range_photos <-  photoID %>% dplyr::group_by(SurveyID) %>%
+   # get min and max from camera traps and entered visits
+    dplyr::mutate(StartCam = withCallingHandlers(min(ImageDate,
+      na.rm = TRUE), warning = h), # suppresses warnings
+                  EndCam = withCallingHandlers(max(ImageDate,
+                    na.rm = TRUE), # suppresses warnings
+                    warning = h),
+                  StartVisit = min(VisitDateTime),
+                  EndVisit = max(VisitDateTime)) %>%
+   # get only the columns that we will need
+    dplyr::select(dplyr::one_of(c("StartCam", "EndCam", "StartVisit","EndVisit",
+      "VisitID", "SurveyID"))) %>%
+   # remove duplicate rows
     dplyr::distinct() %>%
-   dplyr::summarise(Start = as.POSIXct(format(Start, format = "%Y-%m-%d")),
-                    End = as.POSIXct(format(End, format = "%Y-%m-%d")),
-                    VisitID = VisitID)
+   # format the previously created columns as POSIXct
+    dplyr::summarise(StartCam =
+        as.POSIXct(format(StartCam, format = "%Y-%m-%d")),
+                     EndCam = as.POSIXct(format(EndCam, format = "%Y-%m-%d")),
+                     StartVisit = as.POSIXct(format(StartVisit,
+                       format = "%Y-%m-%d")),
+                     EndVisit = as.POSIXct(format(EndVisit,
+                       format = "%Y-%m-%d")),
+                     VisitID = VisitID,
+                     SurveyID = SurveyID) %>%
+    # determine if camera started before or after initial visits +- 30 days
+    dplyr::mutate(CamB4Visit = StartCam - as.difftime(30, units = "days") >
+        StartVisit,
+                  CamAftVisit = EndCam + as.difftime( 30, units = "days") <
+        EndVisit)
+# make the SurveyID the key
+ data.table::setkey(range_photos, "SurveyID")
 
- t2 <- apply(data.frame(test), 1, function(x) {seq(x[1], x[2], by = "1 day")})
+# make a list of days from camera set and end via the entered visits
+ first <- range_photos[which(duplicated(range_photos$SurveyID)==FALSE),]
+
+ # a list to store all of the active days
+ # still need to reduce these days if there was a camera malfunction
+ days_list <- vector("list", nrow(first))
+ for(i in 1:nrow(first)){
+   days_list[[i]] <- seq(first$StartVisit[i], first$EndVisit[i], by = "1 day")
+ }
+ names(days_list) <- first$SurveyID
+
+ # find sites where there was some type of malfunction
+
+ malfs <- x$Visits %>%
+   select(one_of(c("SurveyID", "CameraConditionID"))) %>%
+   filter(CameraConditionID %in% c(2,3,4)) %>%
+   group_by(SurveyID)
+
+ all_vis_malfs <- x$Visits[SurveyID %in% malfs$SurveyID] %>%
+   select(one_of(c("SurveyID", "VisitTypeID", "ActiveStart", "ActiveEnd",
+     "VisitDateTime", "CameraConditionID"))) %>% na.omit
+
+ names(second_list) <- second$SurveyID
+
+ keys <- unique(c(names(first_list), names(second_list)))
+ range_photos <- setNames(mapply(c, first_list[keys], second_list[keys]), keys)
+
+ range_photos <- lapply(range_photos, unique)
+ range_photos <- lapply(range_photos, sort)
+
+ if (drop_tails) {
+   range_photos <- lapply(range_photos, FUN = function(x) { tail(x, -1)})
+   range_photos <- lapply(range_photos, FUN = function(x) { tail(x, -1)})
+ }
+ len_ran <- sapply(range_photos, length)
+ ans <- data.frame(Dates = do.call("c", range_photos),
+                   SurveyID = rep(names(len_ran), times = len_ran),
+                   stringsAsFactors = FALSE)
+ jmat <- data.frame(DaysActive = len_ran, SurveyID = names(len_ran),
+                    stringsAsFactors = FALSE)
+
+ perfect_range <-  perfectID %>% dplyr::group_by(VisitID) %>%
+   dplyr::mutate(StartVis = min(VisitDate),
+     EndVis = max(VisitDate)) %>%
+   dplyr::select(dplyr::one_of(c("StartVis", "EndVis",
+     "VisitID", "SurveyID"))) %>%
+   dplyr::distinct() %>%
+   dplyr::summarise(StartVis = as.POSIXct(format(StartVis, format = "%Y-%m-%d")),
+     EndVis = as.POSIXct(format(EndVis, format = "%Y-%m-%d")),
+     VisitID = VisitID,
+     SurveyID = SurveyID) %>%
+   dplyr::filter(complete.cases(.) == TRUE) %>%
+   dplyr::group_by(SurveyID) %>%
+   dplyr::mutate(StartVis = min(StartVis, na.rm = TRUE),
+     EndVis = max(EndVis, na.rm = TRUE)) %>%
+   dplyr::select(dplyr::one_of("StartVis", "EndVis", "SurveyID")) %>%
+   dplyr::distinct() %>%
+   dplyr::left_join(., perfect_range_photos, by = "SurveyID")
+
+
+
+
  vl <- vector("list", nrow(test))
  for(i in 1:nrow(test)){
    vl[[i]] <- seq(test$Start[i], test$End[i], by = "1 day")
+   #names(vl[[i]]) <- test$SurveyID[i]
  }
-
+names(vl) <- test$SurveyID
 }
 
 

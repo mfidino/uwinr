@@ -26,10 +26,10 @@ an error will occur.}
   as the timestamps are compared to the set and pull records in this table.
 }
 \examples{
-# read in the data
+# Load data from database
 uwin_list <- collect_tables("UWIN_DB_CHIL.accdb")
 
-# conduct qaqc on 'Photos' table
+# apply qaqc to 'Photos' table
 uwin_list <- photos_qaqc(uwin_list)
 }
 \author{

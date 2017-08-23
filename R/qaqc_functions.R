@@ -2,27 +2,30 @@
 #'
 #' @description
 #' \code{do_qaqc} is a utility function that calls all other QA/QC functions
-#' that are available in \code{uwinr} for the tables that are loaded
-#' via \code{\link{collect_tables}}. Currently, the tables where QA/QC
-#' functions exist include: Visits (\code{\link{visits_qaqc}}) and
-#' Photos (\code{\link{photos_qaqc}}).
+#'   available in \code{uwinr} for the tables that are loaded
+#'   via \code{\link{collect_tables}}. Currently, the tables where QA/QC
+#'   functions exist include: Visits (\code{\link{visits_qaqc}}) and
+#'   Photos (\code{\link{photos_qaqc}}).
 #'
 #' @param uwin_data The list object returned from \code{\link{collect_tables}}.
 #'
 #' @return Returns the list object from \code{\link{collect_tables}}.
-#' Furthermore, this function will create a sub-folder in your
-#' working directory titled\code{error_reports} if it does not exist and
-#' populate thatsub-folder with an error report titled
-#' \code{error_report_DATE.txt} where
-#' \code{DATE} is the current date called via \code{\link{Sys.Date}}. This
-#' error report will describe potential issues with the data in your
-#' UWIN database and point you out to a number of csv files that further
-#' describe these errors.
+#'   Furthermore, this function will create a sub-folder in your
+#'   working directory titled\code{error_reports} if it does not exist and
+#'   populate thatsub-folder with an error report titled
+#'   \code{error_report_DATE.txt} where
+#'   \code{DATE} is the current date called via \code{\link{Sys.Date}}. This
+#'   error report will describe potential issues with the data in your
+#'   UWIN database and point you out to a number of csv files that further
+#'   describe these errors.
 #'
 #' @author Mason Fidino
 #'
 #' @examples
+#' # Load data from database
 #' uwin_list <- collect_tables("UWIN_DB_CHIL.accdb")
+#'
+#' # do qaqc
 #' uwin_list <- do_qaqc(uwin_list)
 #'
 #' @export
@@ -88,7 +91,7 @@ do_qaqc <- function(uwin_data = NULL, show_error_file = TRUE) {
 #' @author Mason Fidino
 #'
 #' @examples
-#' # read in the data
+#' # Load data from database
 #' uwin_list <- collect_tables("UWIN_DB_CHIL.accdb")
 #'
 #' # apply qaqc to 'Visits' table
@@ -130,7 +133,7 @@ visits_qaqc <- function(uwin_data = NULL, file_conn = NULL){
   }
 
   # do the same thing with Action 3 and Action 1
-  if (nrow(visits_log[visits_log$Action3ID == "1"]) >0){
+  if (nrow(visits_log[visits_log$Action3ID == "1",]) > 0){
     visits_log[visits_log$Action3ID == "1"] <-within(
       visits_log[visits_log$Action3ID == "1"],{
       Action3ID <- Action1ID
@@ -206,7 +209,7 @@ if (nrow(to_check_extra_sixes)>0) {
 }
 
 #-------------
-### QAQC ERROR 6: Camera only has < 2 or > 3 rows per season
+### QAQC ERROR: Camera only has < 2 or > 3 rows per season
 #-------------
 
 sids <- table(visits_log$SurveyID)
@@ -224,7 +227,7 @@ if (length(lt2) > 0 | length(mt3) > 0) {
   errors <- c(errors, 0)
 }
 #-------------
-### QAQC ERROR 7: camera set date < camera check date < camera pull date
+### QAQC ERROR: camera set date < camera check date < camera pull date
 #-------------
 
 # note, VisitTypeID is 1 = pull, 2, = check, 3 = set. Thus,
@@ -233,7 +236,7 @@ if (length(lt2) > 0 | length(mt3) > 0) {
 data.table::setkey(visits_log, SurveyID, VisitTypeID)
 
 check_decrease <- visits_log %>% dplyr::group_by(SurveyID) %>%
-  dplyr::mutate(DatesIncreasing = any(diff(VisitDate) > 0),
+  dplyr::mutate(DatesIncreasing = any(diff(VisitDate) >= 0),
     IDDecreasing = any(diff(VisitTypeID) < 0)) %>%
   dplyr::select(dplyr::one_of(c("SurveyID", "DatesIncreasing",
     "IDDecreasing"))) %>%
@@ -326,13 +329,13 @@ Check file 'visit_dates_entered_out_of_order.csv' in error_reports.\n")
   error_message <- paste("\nThere are/is", sum(errors),
     "kind(s) of errors in the 'Visits' table.\nThese errors include:\n")
   message_to_print <- paste(error_message,
-    paste(error_frame[which(errors == 1)],
-    collapse = to_spl), collapse = "")
-    uwinr:::fwrt("\n---VISITS TABLE---\n", file_conn)
-    uwinr:::fwrt("Errors in the Visits table should be addressed", file_conn)
-    uwinr:::fwrt("before further summarizing your data.", file_conn)
-    uwinr:::fwrt(message_to_print, file_conn)
-    uwinr:::fwrt(uwinr:::create_split("-"), file_conn)
+  paste(error_frame[which(errors == 1)],
+  collapse = to_spl), collapse = "")
+  uwinr:::fwrt("\n---VISITS TABLE---\n", file_conn)
+  uwinr:::fwrt("Errors in the Visits table should be addressed", file_conn)
+  uwinr:::fwrt("before further summarizing your data.", file_conn)
+  uwinr:::fwrt(message_to_print, file_conn)
+  uwinr:::fwrt(uwinr:::create_split("-"), file_conn)
 } else {
   uwinr:::fwrt("\n---VISITS TABLE---\n", file_conn)
   uwinr:::fwrt("No errors in 'Visits' table", file_conn)
@@ -366,10 +369,10 @@ return(uwin_data)
 #' @author Mason Fidino
 #'
 #' @examples
-#' # read in the data
+#' # Load data from database
 #' uwin_list <- collect_tables("UWIN_DB_CHIL.accdb")
 #'
-#' # conduct qaqc on 'Photos' table
+#' # apply qaqc to 'Photos' table
 #' uwin_list <- photos_qaqc(uwin_list)
 
 photos_qaqc <- function(uwin_data = NULL, file_conn = NULL){

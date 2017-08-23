@@ -11,24 +11,27 @@ do_qaqc(uwin_data = NULL, show_error_file = TRUE)
 }
 \value{
 Returns the list object from \code{\link{collect_tables}}.
-Furthermore, this function will create a sub-folder in your
-working directory titled\code{error_reports} if it does not exist and
-populate thatsub-folder with an error report titled
-\code{error_report_DATE.txt} where
-\code{DATE} is the current date called via \code{\link{Sys.Date}}. This
-error report will describe potential issues with the data in your
-UWIN database and point you out to a number of csv files that further
-describe these errors.
+  Furthermore, this function will create a sub-folder in your
+  working directory titled\code{error_reports} if it does not exist and
+  populate thatsub-folder with an error report titled
+  \code{error_report_DATE.txt} where
+  \code{DATE} is the current date called via \code{\link{Sys.Date}}. This
+  error report will describe potential issues with the data in your
+  UWIN database and point you out to a number of csv files that further
+  describe these errors.
 }
 \description{
 \code{do_qaqc} is a utility function that calls all other QA/QC functions
-that are available in \code{uwinr} for the tables that are loaded
-via \code{\link{collect_tables}}. Currently, the tables where QA/QC
-functions exist include: Visits (\code{\link{visits_qaqc}}) and
-Photos (\code{\link{photos_qaqc}}).
+  available in \code{uwinr} for the tables that are loaded
+  via \code{\link{collect_tables}}. Currently, the tables where QA/QC
+  functions exist include: Visits (\code{\link{visits_qaqc}}) and
+  Photos (\code{\link{photos_qaqc}}).
 }
 \examples{
+# Load data from database
 uwin_list <- collect_tables("UWIN_DB_CHIL.accdb")
+
+# do qaqc
 uwin_list <- do_qaqc(uwin_list)
 
 }

@@ -3,6 +3,7 @@
 export(censor_photos)
 export(collect_tables)
 export(do_qaqc)
+export(reduce_seasons)
 export(visits_qaqc)
 importFrom(RODBC,odbcClose)
 importFrom(RODBC,odbcConnectAccess2007)

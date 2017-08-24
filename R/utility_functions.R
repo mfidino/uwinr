@@ -190,6 +190,32 @@ datetime <- function(x) {
 }
 
 
+
+convert_sid <- function( sid = NULL, uwin_data = NULL ) {
+
+  # converts a surveyID to a vector [LocationName, Season, Year]
+  # if given a vector it will return a dataframe.
+
+  split_sid <- unlist(strsplit(sid, "-")) %>% as.numeric %>%
+    matrix(., ncol = 3, nrow = length(sid), byrow = TRUE) %>%
+    data.table
+
+  colnames(split_sid) <- c("LocationID", "SeasonID", "Year")
+
+  LocationName <- uwin_data$CameraLocations %>%
+    dplyr::select( dplyr::one_of( c( "LocationName", "LocationID" ) ) ) %>%
+    right_join( . , split_sid, by = "LocationID" ) %>%
+    dplyr::select(dplyr::one_of( c( "LocationName" ) ) )
+
+  Season <- with(uwin_data$lkupSeasons,
+    Season[split_sid$SeasonID] ) %>%  as.character
+
+  to_return <- data.frame(LocationName, Season, Year = split_sid$Year)
+  return(to_return)
+
+  }
+
+
 sid_2_mat <- function(sid = NULL, value = NULL) {
 
 

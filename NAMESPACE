@@ -2,6 +2,7 @@
 
 export(censor_photos)
 export(collect_tables)
+export(create_possible_days)
 export(do_qaqc)
 export(reduce_seasons)
 export(visits_qaqc)

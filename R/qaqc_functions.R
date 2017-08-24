@@ -58,7 +58,7 @@ do_qaqc <- function(uwin_data = NULL, show_error_file = TRUE) {
     file.edit(fpath)
   }
 
-  assign(oname, uwin_data, envir = .GlobalEnv)
+  return(uwin_data)
   }
 }
 
@@ -257,6 +257,152 @@ if (sum(check_decrease$DatesIncreasing) > 0) {
   errors <- c(errors, 0)
 }
 
+#-------------
+### QAQC ERROR: Active dates manually set to an erroneous date
+#-------------
+data.table::setkey(visits_log, SurveyID, VisitTypeID)
+
+min_max <- visits_log %>%
+  dplyr::mutate( SeaYear = substr( SurveyID, 5, 8 ) ) %>%
+  dplyr::group_by( SeaYear ) %>%
+  dplyr::mutate( MinVis = min( VisitDate ), MaxVis = max( VisitDate ) ) %>%
+  dplyr::select( dplyr::one_of( c( "SeaYear", "MinVis", "MaxVis",
+    "ActiveStart", "ActiveEnd", "VisitTypeID", "SurveyID", "VisitID") ) ) %>%
+  dplyr::filter( VisitTypeID %in% c( 1, 2 ) ) %>%
+  mutate( MinThresh = MinVis - as.difftime( 7, units = "days" ),
+    MaxThresh = MaxVis + as.difftime( 7, units = "days" ) ) %>%
+  dplyr::mutate(MinAct = ActiveStart < as.POSIXct( MinThresh ),
+                MaxAct = ActiveEnd   > as.POSIXct( MaxThresh)) %>%
+  dplyr::select( dplyr::one_of( c( "SurveyID", "MinAct", "MaxAct",
+    "ActiveStart", "ActiveEnd", "MinThresh", "MaxThresh", "VisitID") ) )
+
+# we need to remove instances when the activeDate is wrong due to
+# cameras being set wrong (this only should locate incorrect manual changes)
+
+# if set before minimum start
+if ( sum( min_max$MinAct, na.rm = TRUE ) > 0 ) {
+  manual_start_error <- min_max[MinAct == TRUE]
+  phot_min_max <- uwin_data$Photos %>% dplyr::group_by( VisitID ) %>%
+    dplyr::mutate( MinImageDate = min(ImageDate),
+                   MaxImageDate = max(ImageDate)) %>%
+    dplyr::select( dplyr::one_of( c( "VisitID", "MinImageDate",
+      "MaxImageDate"))) %>%
+    dplyr::distinct( . )
+  manual_start_error <- dplyr::left_join(manual_start_error,
+    phot_min_max, by = "VisitID")
+  to_go  <- with( manual_start_error, which( ActiveStart == MinImageDate ))
+  if( length( to_go ) > 0 ) {
+  manual_start_error <- manual_start_error[-to_go,]
+  }
+
+  manual_start_error <- manual_start_error %>%
+    dplyr::select( dplyr::one_of( c( "SurveyID",
+      "ActiveStart", "MinThresh") ) )
+  if( nrow( manual_start_error ) > 0 ){
+  errors <- c( errors, 1 )
+  }
+
+} else {
+  errors <- c( errors, 0 )
+}
+
+# if end after maximum pull
+if ( sum( min_max$MaxAct, na.rm = TRUE ) > 0 ) {
+  manual_end_error <- min_max[MaxAct == TRUE]
+  phot_min_max <- uwin_data$Photos %>% dplyr::group_by( VisitID ) %>%
+    dplyr::mutate( MinImageDate = min(ImageDate),
+      MaxImageDate = max(ImageDate)) %>%
+    dplyr::select( dplyr::one_of( c( "VisitID", "MinImageDate",
+      "MaxImageDate"))) %>%
+    dplyr::distinct( . )
+  manual_end_error <- dplyr::left_join(manual_end_error,
+    phot_min_max, by = "VisitID")
+  to_go  <- with( manual_end_error, which( ActiveEnd == MaxImageDate ))
+  if( length( to_go ) > 0 ) {
+    manual_end_error <- manual_end_error[-to_go,]
+  }
+
+  manual_end_error <- manual_end_error %>%
+    dplyr::select( dplyr::one_of( c( "SurveyID",
+      "ActiveEnd", "MaxThresh") ) )
+
+  if( nrow( manual_end_error ) > 0 ){
+  errors <- c( errors, 1 )
+  }
+} else {
+  errors <- c( errors, 0 )
+}
+
+# if set after end
+
+flipped_entries <- visits_log %>%
+  dplyr::mutate( SeaYear = substr( SurveyID, 5, 8 ) ) %>%
+  dplyr::group_by( SeaYear ) %>%
+  dplyr::mutate( MinVis = min( VisitDate ), MaxVis = max( VisitDate ) ) %>%
+  dplyr::select( dplyr::one_of( c( "SeaYear", "MinVis", "MaxVis",
+    "ActiveStart", "ActiveEnd", "VisitTypeID", "SurveyID", "VisitID") ) ) %>%
+  dplyr::filter( VisitTypeID %in% c( 1, 2 ) ) %>%
+  dplyr::mutate(StartAftEnd = ActiveStart > as.POSIXct( MaxVis ),
+    EndB4Start = ActiveEnd   < as.POSIXct( MinVis))
+
+ # if end occurs before start
+
+if ( sum( flipped_entries$EndB4Start, na.rm = TRUE ) > 0 ) {
+  end2quick <- flipped_entries[EndB4Start == TRUE]
+  phot_min_max <- uwin_data$Photos %>% dplyr::group_by( VisitID ) %>%
+    dplyr::mutate( MinImageDate = min(ImageDate),
+      MaxImageDate = max(ImageDate)) %>%
+    dplyr::select( dplyr::one_of( c( "VisitID", "MinImageDate",
+      "MaxImageDate"))) %>%
+    dplyr::distinct( . )
+  end2quick <- dplyr::left_join(end2quick,
+    phot_min_max, by = "VisitID")
+  to_go  <- with( end2quick, which( ActiveEnd == MaxImageDate ))
+  if( length( to_go ) > 0 ) {
+    end2quick <- end2quick[-to_go,]
+  }
+
+  end2quick <- end2quick %>%
+    dplyr::select( dplyr::one_of( c( "SurveyID",
+      "ActiveEnd", "MinVis") ) )
+  if( nrow( manual_start_error ) > 0 ){
+    errors <- c( errors, 1 )
+  }
+
+} else {
+  errors <- c( errors, 0 )
+}
+
+# if start occurs after end
+
+if ( sum( flipped_entries$StartAftEnd, na.rm = TRUE ) > 0 ) {
+  start_aft_end <- flipped_entries[StartAftEnd == TRUE]
+  phot_min_max <- uwin_data$Photos %>% dplyr::group_by( VisitID ) %>%
+    dplyr::mutate( MinImageDate = min(ImageDate),
+      MaxImageDate = max(ImageDate)) %>%
+    dplyr::select( dplyr::one_of( c( "VisitID", "MinImageDate",
+      "MaxImageDate"))) %>%
+    dplyr::distinct( . )
+  start_aft_end <- dplyr::left_join(start_aft_end,
+    phot_min_max, by = "VisitID")
+  to_go  <- with( start_aft_end, which( ActiveStart == MinImageDate ) )
+  if( length( to_go ) > 0 ) {
+    start_aft_end <- start_aft_end[-to_go,]
+  }
+
+  start_aft_end <- start_aft_end %>%
+    dplyr::select( dplyr::one_of( c( "SurveyID",
+      "ActiveStart", "MaxVis") ) )
+  if( nrow( manual_start_error ) > 0 ){
+    errors <- c( errors, 1 )
+  }
+
+} else {
+  errors <- c( errors, 0 )
+}
+
+
+
 # posting errors
 if (is.null(file_conn)) {
   dtime <- Sys.Date()
@@ -269,40 +415,85 @@ if (!file.exists(file_conn)) {
 if (sum(errors) > 0) {
   # write the files where errors occur
   if (errors[1] == 1) {
-    write.csv(visits_log[visits_log$Action2ID == "1",],
+    v1 <- visits_log[visits_log$Action2ID == "1", ]
+    v1 <- cbind( v1, uwinr:::convert_sid( v1$SurveyID, uwin_data ) )
+    write.csv( v1,
       "./error_reports/Visits_action12_error.csv", row.names = FALSE)
   }
   if (errors[2] == 1) {
-    write.csv(visits_log[visits_log$Action3ID == "1",],
+    v2 <- visits_log[visits_log$Action3ID == "1", ]
+    v2 <- cbind( v2, uwinr:::convert_sid( v2$SurveyID, uwin_data ) )
+    write.csv( v2 ,
       "./error_reports/Visits_action13_error.csv", row.names = FALSE)
   }
   if (errors[3] == 1) {
+    to_check_extra_ones <- cbind( to_check_extra_ones,
+      uwinr:::convert_sid( to_check_extra_ones$SurveyID, uwin_data ) )
     write.csv(x = to_check_extra_ones,
       file = "./error_reports/multiple_camera_set_actions.csv",
       row.names = FALSE)
   }
   if (errors[4] == 1) {
+    to_check_no_ones <- cbind( to_check_no_ones,
+      uwinr:::convert_sid( to_check_no_ones$SurveyID, uwin_data ) )
     write.csv(x = to_check_no_ones,
       file = "./error_reports/absent_camera_set_actions.csv",
       row.names = FALSE)
   }
   if (errors[5] == 1) {
+    to_check_extra_sixes <- cbind( to_check_extra_sixes,
+      uwinr:::convert_sid( to_check_extra_sixes$SurveyID, uwin_data ) )
     write.csv(x = to_check_extra_sixes,
       file = "./error_reports/camera_removed_twice.csv",
       row.names = FALSE)
 
   }
   if (errors[6] == 1) {
+    to_check_row_error <- data.frame( surveyID = to_check_row_error,
+      uwinr:::convert_sid( to_check_row_error, uwin_data ) )
     write.csv(x = to_check_row_error,
         file = "./error_reports/site_season_with_1_or_4plus_records.csv",
         row.names = FALSE)
   }
   if (errors[7] == 1) {
+    vdate_errors <- cbind( vdate_errors,
+      uwinr:::convert_sid( vdate_errors$SurveyID, uwin_data ) )
     write.csv(x = vdate_errors,
       file = "./error_reports/visit_dates_entered_out_of_order.csv",
       row.names = FALSE)
   }
 
+  if (errors[8] == 1) {
+    manual_start_error <- cbind( manual_start_error,
+      uwinr:::convert_sid( manual_start_error$SurveyID, uwin_data ) )
+    write.csv(x = manual_start_error,
+      file = "./error_reports/active_start_set_wrong_manually.csv",
+      row.names = FALSE)
+  }
+
+  if (errors[9] == 1) {
+    manual_end_error <- cbind( manual_end_error,
+      uwinr:::convert_sid( manual_end_error$SurveyID, uwin_data ) )
+    write.csv(x = manual_end_error,
+      file = "./error_reports/active_end_set_wrong_manually.csv",
+      row.names = FALSE)
+  }
+
+  if (errors[10] == 1) {
+    end2quick <- cbind( end2quick,
+      uwinr:::convert_sid( end2quick$SurveyID, uwin_data = NULL ) )
+    write.csv(x = end2quick,
+      file = "./error_reports/active_end_before_set.csv",
+      row.names = FALSE)
+  }
+
+  if (errors[11] == 1) {
+    start_aft_end <- cbind( start_aft_end,
+      uwinr:::convert_sid( start_aft_end$SurveyID, uwin_data ) )
+    write.csv(x = start_aft_end,
+      file = "./error_reports/active_start_after_pull.csv",
+      row.names = FALSE)
+  }
 # some text for the error messages
   error_frame <-  c(
 "\nThere are rows where Action2ID equals Action1ID during a single\nvisit in the 'Visits' table.\n
@@ -323,7 +514,19 @@ Check file 'camera_removed_twice.csv in error_reports.\n",
 Check file 'site_season_with_1_or_4plus_records.csv' in error_reports.\n",
 
 "\nThe 'Visits' table has instances when the the VisitDate does not\nincrease from camera set to check to pull.\n
-Check file 'visit_dates_entered_out_of_order.csv' in error_reports.\n")
+Check file 'visit_dates_entered_out_of_order.csv' in error_reports.\n",
+
+"\n The 'Visits' table has instances when the 'ActiveStart' was manually\nset to a date > 7 days before a sampling season started.\n
+Check file 'active_start_set_wrong_manually.csv' in error_reports.\n",
+
+"\n The 'Visits' table has instances when the 'ActiveEnd' was manually\nset to a date > 7 days after a sampling season ended.\n
+Check file 'active_end_set_wrong_manually.csv' in error_reports.\n",
+
+"\n The 'Visits' table has instances when the 'ActiveEnd' was manually\nset before a sampling season should have started.\n
+Check file 'active_end_before_set.csv' in error_reports.\n",
+
+"\n The 'Visits' table has instances when the 'ActiveStart' was manually\nset after a sampling season should have ended.\n
+Check file 'active_start_after_pull.csv' in error_reports.\n")
 
   to_spl <- uwinr:::create_split("#")
   error_message <- paste("\nThere are/is", sum(errors),
@@ -417,7 +620,7 @@ photos_qaqc <- function(uwin_data = NULL, file_conn = NULL){
     dplyr::select(dplyr::one_of(varbs))
 
   #-------------
-  ### QAQC ERROR: Photos occured > 1 month from camera set
+  ### QAQC ERROR: Photos occured > 7 days from camera set
   #-------------
   errors <- rep(0, 2)
   # get the start times
@@ -433,7 +636,7 @@ photos_qaqc <- function(uwin_data = NULL, file_conn = NULL){
     errors[1] <- 1
   }
   #-------------
-  ### QAQC ERROR: Photos occured > 1 month from camera pull
+  ### QAQC ERROR: Photos occured > 7 days from camera pull
   #-------------
   ends_aft_pull <- uwinr:::create_time_check(phvi, start = FALSE)
 
@@ -463,7 +666,7 @@ photos_qaqc <- function(uwin_data = NULL, file_conn = NULL){
     uwinr:::fwrt(paste(to_add, collapse = "\n"), file_conn)
     if(errors[1] == 1) {
       ereport <- c("There are images in the 'Photos' table with timestamps that",
-         "are 30 days earlier than the date that the camera was 'set' in",
+         "are 7 days earlier than the date that the camera was 'set' in",
          "the 'Visits' table. Check file 'imageDate_start_before_camera_set.csv'",
          "in the error_reports sub-folder of your working directory to see",
          "the ImageID's causing this error.")
@@ -474,7 +677,7 @@ photos_qaqc <- function(uwin_data = NULL, file_conn = NULL){
     }
     if(errors[2] == 1) {
        ereport <- c("There are images in the 'Photos' table with timestamps that",
-         "are 30 days later than the date that the camera was 'pulled' in",
+         "are 7 days later than the date that the camera was 'pulled' in",
          "the 'Visits' table. Check file 'imageDate_after_camera_pull.csv'",
          "in the error_reports sub-folder of your working directory to see",
          "the ImageID's causing this error.")

@@ -2,7 +2,8 @@
 
 export(censor_photos)
 export(collect_tables)
-export(create_possible_days)
+export(create_detection_matrix)
+export(create_observation_matrix)
 export(do_qaqc)
 export(reduce_seasons)
 export(visits_qaqc)

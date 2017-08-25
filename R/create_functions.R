@@ -89,9 +89,9 @@ create_split <- function(x = NULL, addn = TRUE) {
 #' @param uwin_data The list object returned from \code{\link{collect_tables}}
 #'   and after it has been through \code{\link{do_qaqc}} .
 #'   If the \code{Visits} table is not within this object an error will occur.
-#' @param binomial_detections If \code{TRUE}, \code{create_possible_days}
+#' @param binomial_detections If \code{TRUE}, \code{create_observation_matrix}
 #'   will return the total number of days a site was operable. If \code{FALSE},
-#'   \code{create_possible_days} will return a vector of binary elements that
+#'   \code{create_observation_matrix} will return a vector of binary elements that
 #'   take the value of \code{1} if it was operable on a given day or \code{0} if
 #'   it was not.
 #' @param drop_tails This will check if the date range for a site taken from
@@ -121,9 +121,10 @@ create_split <- function(x = NULL, addn = TRUE) {
 #'  dat <- reduce_seasons(dat, start = "JU17")
 #'
 #'  # make observation matrix
-#'  obser_matrix <- create_possible_days(dat)
+#'  obser_matrix <- create_observation_matrix(dat)
 
-create_possible_days <- function(uwin_data = NULL, binomial_detections = FALSE,
+create_observation_matrix <- function(uwin_data = NULL,
+  binomial_detections = FALSE,
   drop_tails = FALSE) {
 
   if(!"SurveyID" %in% colnames(uwin_data$Visits)) {
@@ -269,7 +270,8 @@ create_possible_days <- function(uwin_data = NULL, binomial_detections = FALSE,
    } # close if // flag min > 0
 
    if( sum( joined_thresh$flag_max ) > 0 ) {
-     sea_yr_to_change <- joined_thresh$sea_yr[ which( joined_thresh$flag_max > 0) ]
+     sea_yr_to_change <- joined_thresh$sea_yr[
+       which( joined_thresh$flag_max > 0) ]
 
      for( i in 1: length( sea_yr_to_change ) ) {
        rows_2_change <- grep(sea_yr_to_change[i], row.names(obs_mat$mat))
@@ -298,6 +300,8 @@ that the date/time data on your images is correct.")
      obs_mat$mat <- t(t(rowSums(obs_mat$mat)))
    } # close if // binonimal_detections = TRUE
 
+ # make the days active POSIXct
+ obs_mat$days_active <- as.POSIXct(obs_mat$days_active)
 
  # return obs_mat
  return(obs_mat)
@@ -306,9 +310,134 @@ that the date/time data on your images is correct.")
 
 
 
+#' Create species detection non-detection matrix
+#'
+#' @param uwin_data The list object returned from \code{\link{collect_tables}}
+#'   and after it has been through \code{\link{do_qaqc}} and reduced to the
+#'   seasons of interest via \code{\link{reduce_seasons}}.
+#' @param observation_matrix The list object returned by
+#'   \code{\link{create_observation_matrix}}.
+#' @param binomial_detections If \code{TRUE}, \code{create_detection_matrix}
+#'   will return the total number of days a species was observed at a site.
+#'   If \code{FALSE}, \code{create_detection_matrix} will return a vector of
+#'   binary elements that take the value of \code{1} if a species was observed
+#'   on a given day, \code{0} if it was not, or \code{NA} if the camera was
+#'   not operable.
+#' @param species A vector of the species names from the \code{ShortName}
+#'   column of the \code{Species} table within the UWIN database. If left NULL
+#'   and \code{select_species = FALSE} then a detection matrix
+#'   will be made for each species in the \code{Species} table.
+#' @param select_species If TRUE, a pop-up list will open up that you can use
+#'   to select the species you would like to make a detection matrix for. You
+#'   can hold \code{Ctrl} to select multiple species that are seperated by
+#'   other species you do not want to make a detection matrix for. Defaults
+#'   to FALSE.
+#'
+#' @return
+#' @export
+#'
+#' @examples
 create_detection_matrix <- function( uwin_data = NULL,
   observation_matrix = NULL, binomial_detections = FALSE,
-  species = NULL) {
+  select_species = FALSE, species = NULL){
+
+  # simple error checks
+  if( !is.logical( select_species ) ) {
+    stop( paste0("\nselect_speices must be a logical (T/F) statement"))
+  }
+  if( !is.logical( binomial_detections ) ) {
+    stop( paste0("\nbinomial_detections must be a logical (T/F) statement"))
+  }
+  if( !is.list( uwin_data ) ){
+    stop( paste0("\nuwin_data must be a list object." ) )
+  }
+  if( !"SurveyID" %in% colnames(uwin_data$Visits ) ){
+    stop( paste0("\nuwin_data must be put through do_qaqc first.",
+      "\nSee ?do_qaqc") )
+  }
+  # end simple error checks
+
+  # use select.list
+  if( select_species & length( species ) == 0 ) {
+    choices <- select.list( as.character( uwin_data$Species$ShortName ),
+      multiple = TRUE, graphics = TRUE )
+  } # end if // select_species = TRUE and species = NULL
+
+  # use species names provided by species argument
+  if( length( species ) > 0 ) {
+    # make sure species is a character vector
+    if( !is.character( species ) ){
+      stop(paste0("\nThe species argument must either be NULL or a\n",
+                  "character vector. It is currently neither of these."))
+    }
+    # check to see if there are species put into argument that are not
+    # in the species table
+    error_species <- species[ which( !species %in% uwin_data$Species$ShortName)]
+    stop(paste0("\nA species provided in the species argument is either\n",
+          "misspelledor not in the Species table of the UWIN database.\n",
+          "This error was generated from the following entries:\n\n",
+      paste(error_species, collapse = "\n") ) )
+    # make choices species
+    choices <- species
+    } # end if // species has a character vector argument
+
+  # get all of the species
+  if( select_species == FALSE & length( species ) == 0 ){
+     choices <- uwin_data$Species$ShortName
+  } # end if // select_species = FALSE and no species provided
+
+  # get only photos of the species you want
+  # convert choices to SpeciesID
+  choices_num <- uwin_data$Species %>%
+    dplyr::filter( ShortName %in% choices ) %>%
+    dplyr::select( dplyr::one_of( "SpeciesID", "ShortName" ) )
+
+  # These are the detections we want
+  detects <- uwin_data$Detections %>%
+    dplyr::filter( SpeciesID %in% choices_num$SpeciesID )
+
+  # only get photos and detections that are within days active
+  # observation matrix
+  photos <- uwin_data$Photos %>%
+    dplyr::filter( ImageID %in% detects$ImageID) %>%
+    mutate(Date = format(ImageDate, format = "%Y-%m-%d")) %>%
+    dplyr::filter(Date %in% format(observation_matrix$days_active,
+      format = "%Y-%m-%d")) %>%
+    dplyr::left_join(., detects, by = "ImageID") %>%
+    dplyr::left_join(., uwin_data$Visits, by = "VisitID") %>%
+    dplyr::select( dplyr::one_of( c( "ImageDate", "Date", "SpeciesID",
+      "Individuals", "SurveyID")))
+
+  # make an site x day x species array for a season
+  nsite <- uwin_data$Visits$SurveyID %>% unique %>%
+    strsplit("-") %>%
+    lapply( ., function(x) x[-1] ) %>%
+    lapply( ., paste, collapse = "-" ) %>%
+    unlist %>%
+    table
+
+
+  nseason <- length( nsite ) # not using yet
+  sites_per_survey <- vector("list", length = nseason )
+
+
+  nday <- length( observation_matrix$days_active )
+  nspec <- length( choices )
+  ymat <- vector( "list", length = nseason )
+
+  for( i in 1:nseason ) {
+    # get surveyID for a given season
+    sites_per_survey[[i]] <- uwin_data$Visits %>%
+      dplyr::filter(.,grep(paste0(names(nsite)[i],"$"), SurveyID)) %>%
+      dplyr::select( dplyr::one_of( "SurveyID" ) ) %>% unique
+    # make a blank detection matrix
+    ymat[[i]] <- array( NA, dim = c(nsite, nday, nspec ),
+      dimnames = list(sites_per_survey[[i]]$SurveyID, NULL,
+      choices_num$ShortName))
+
+  }
+
+  # determine which sites these detections occured
 
 
 

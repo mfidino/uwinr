@@ -89,11 +89,6 @@ create_split <- function(x = NULL, addn = TRUE) {
 #' @param uwin_data The list object returned from \code{\link{collect_tables}}
 #'   and after it has been through \code{\link{do_qaqc}} .
 #'   If the \code{Visits} table is not within this object an error will occur.
-#' @param binomial_detections If \code{TRUE}, \code{create_observation_matrix}
-#'   will return the total number of days a site was operable. If \code{FALSE},
-#'   \code{create_observation_matrix} will return a vector of binary elements that
-#'   take the value of \code{1} if it was operable on a given day or \code{0} if
-#'   it was not.
 #' @param drop_tails This will check if the date range for a site taken from
 #'   the camera trap images occurs between when the camera set date and camera
 #'   pull date entered into the \code{Visits} table of the UWIN database. If
@@ -101,11 +96,13 @@ create_split <- function(x = NULL, addn = TRUE) {
 #'   sampling season or > 7 days after the last recorded camera pull for a
 #'   sampling season then those days will be removed from the analysis.
 #'
-#' @return A list with two elements. The first element, \code{mat}, contains
+#' @return A list with 3 elements. The first element, \code{mat}, contains
 #'   either a survey ID (i.e., site-season-year abbrevaition) by date matrix
 #'   if \code{binomial_detections = FALSE} or a named vector of the number of
 #'   days each survey ID was active. The second element, \code{days_active},
 #'   is a vector of the days that camera traps were active in a given season.
+#'   The final element, \code{binom_mat}, is a binomial version of the
+#'   \code{mat} element (i.e., the rowSums from \code{mat}).
 #'
 #' @export
 #'
@@ -124,7 +121,6 @@ create_split <- function(x = NULL, addn = TRUE) {
 #'  obser_matrix <- create_observation_matrix(dat)
 
 create_observation_matrix <- function(uwin_data = NULL,
-  binomial_detections = FALSE,
   drop_tails = FALSE) {
 
   if(!"SurveyID" %in% colnames(uwin_data$Visits)) {
@@ -142,18 +138,17 @@ create_observation_matrix <- function(uwin_data = NULL,
   # We omit sites that have zero photos and camera sets.
   # Note: We will need camera sets later though, but they are
   #       already in the visits table
-  photoID <- x$Visits %>%
+  photoID <- uwin_data$Visits %>%
     dplyr::select(dplyr::one_of(c("SurveyID", "VisitID", "VisitDateTime",
       "ActiveStart", "ActiveEnd", "VisitTypeID"))) %>%
     na.omit
-
 
   # split into checks and pull
   checks <- photoID[VisitTypeID == 2]
   pulls  <- photoID[VisitTypeID == 1]
 
   # if we have checks make a checks_list
-  if (nrow(checks) > 1) {
+  if ( nrow(checks) > 1 ) {
     days_check <- vector("list", nrow(checks))
     for (i in 1:nrow(checks)){
       # make sequence of days from active start to end
@@ -166,46 +161,48 @@ create_observation_matrix <- function(uwin_data = NULL,
   }
 
   # make a pulls_list.
-  days_pull <- vector("list", nrow(pulls))
-  for (i in 1:nrow(pulls)){ # see comments above
-    days_pull[[i]] <- seq(pulls$ActiveStart[i],
-                          pulls$ActiveEnd[i], by = "1 day")
+  days_pull <- vector( "list", nrow( pulls ) )
+  for ( i in 1:nrow( pulls ) ){ # see comments above
+    days_pull[[i]] <- seq( pulls$ActiveStart[i],
+                          pulls$ActiveEnd[i], by = "1 day" )
   } # close for // 1 to # of pull events
-  names(days_pull) <- pulls$SurveyID
-  days_pull <- sapply(days_pull, format, format = "%Y-%m-%d") %>%
-    sapply(.,as.POSIXct)
+  names( days_pull ) <- pulls$SurveyID
+  days_pull <- sapply( days_pull, format, format = "%Y-%m-%d" ) %>%
+    sapply( . , as.POSIXct )
 
   # if no checks make pull = check (gets removed later)
-  if (nrow(checks) == 0) {
+  if ( nrow( checks ) == 0 ) {
     days_check <- days_pull
 
   }
   # combine the two lists
-
     check_key <- names(days_check) # sids on check
     pull_key <- names(days_pull) # sids on pull
     both_key <- pull_key[pull_key %in% check_key] # sids in both
     just_pull <- pull_key[-which(pull_key %in% check_key)] # sids only in pull
     just_check <- check_key[-which(check_key %in% pull_key)] # sids in check
     both_list <- vector("list", # list for all dates
-      length = length(both_key) + length(just_pull) + length(just_check))
-    names(both_list) <- unique(photoID$SurveyID) # name it based off of photoID
+      length = length( unique( uwin_data$Visits$SurveyID ) ) )
+    names(both_list) <- unique( uwin_data$Visits$SurveyID )
 
     # fill up both_list when data in check and pull
     for (i in 1:length(both_key)) {
-      both_list[[both_key[i]]] <- c(unlist(days_check[both_key[i]][[1]]),
+      key_loc <- which(names( both_list) == both_key[i] )
+      both_list[[key_loc]] <- c(unlist(days_check[both_key[i]][[1]]),
         unlist(days_pull[both_key[i]][[1]]))
     }
 
     # if there are more pulls then checks, fill those in
     if( length( just_pull ) > 0 ) {
     for ( i in 1:length( just_pull ) ) {
-      both_list[[just_pull[i]]] <- days_pull[just_pull[i]][[1]]
+      key_loc <- which( names( both_list) == just_pull[i] )
+      both_list[[key_loc]] <- days_pull[just_pull[i]][[1]]
     }}
     # if there are any checks w/o pulls, fill those in
     if ( length( just_check ) > 0 ) {
       for ( i in 1:length( just_check ) ) {
-        both_list[[just_check[i]]] <- days_check[just_check[i]][[1]]
+        key_loc <- which( names( both_list ) == just_check[i] )
+        both_list[[key_loc]] <- days_check[just_check[i]][[1]]
       }
     }
 
@@ -215,9 +212,14 @@ create_observation_matrix <- function(uwin_data = NULL,
       both_list[[i]] <- sort( both_list[[i]][-which(
         duplicated( both_list[[i]] )==TRUE)] )
       } else { # close if & open else// if duplicate dates
+        if( length( both_list[[i]] ) > 0 ){ # if no observations
         both_list[[i]] <- sort( both_list[[i]] )
+        } else { # close if & open else // if no data
+          both_list[[i]] <- as.POSIXct( NA )
+        } # close else // if no data
       } # close else // if no duplicates
     } # close for // 1: length both_list
+
 
   # melt list to dataframe
  days_long <- reshape2::melt(both_list)
@@ -226,10 +228,11 @@ create_observation_matrix <- function(uwin_data = NULL,
    fun.aggregate = length)
  # make rownames the surveyID
  row.names(days_wide) <- days_wide$L1
- # remove the L1 columns, which is just the surveyID repeated
- days_wide <- days_wide[-which(colnames(days_wide) == "L1")]
+ # remove the L1 and NA columns, which is just the surveyID repeated
+ days_wide <- days_wide[-which(colnames(days_wide) %in% c( "L1", "NA" )) ]
  # this would be a bernoulli matrix for a single season for detections
- obs_mat <- list(mat = days_wide, days_active = colnames(days_wide) )
+ obs_mat <- list(mat = days_wide, days_active = colnames(days_wide),
+                 binom_mat = NA)
  colnames(obs_mat$mat) = 1:ncol(obs_mat$mat)
 
 
@@ -296,9 +299,8 @@ were > 7 days before the first recorded camera set for a sampling season or
 that the date/time data on your images is correct.")
  } # close if // ncol obs_mat$mat > 45
 
-   if(binomial_detections == TRUE) {
-     obs_mat$mat <- t(t(rowSums(obs_mat$mat)))
-   } # close if // binonimal_detections = TRUE
+     obs_mat$binom_mat <- t(t(rowSums(obs_mat$mat)))
+
 
  # make the days active POSIXct
  obs_mat$days_active <- as.POSIXct(obs_mat$days_active)
@@ -306,7 +308,7 @@ that the date/time data on your images is correct.")
  # return obs_mat
  return(obs_mat)
 
-} # close function // create_possible_days
+} # close function // create_observation_matrix
 
 
 
@@ -331,15 +333,36 @@ that the date/time data on your images is correct.")
 #'   to select the species you would like to make a detection matrix for. You
 #'   can hold \code{Ctrl} to select multiple species that are seperated by
 #'   other species you do not want to make a detection matrix for. Defaults
-#'   to FALSE.
+#'   to TRUE.
 #'
-#' @return
+#' @return A list with three elements. The first element, \code{mat}, contains
+#'   a survey ID (i.e., site-season-year abbreviation). The second element,
+#'    \code{days_active}, is a vector of the days that camera traps were active
+#'    in a given season. The final element, \code{binom_mat} is the total number
+#'    of days a camera trap was active on a given season.
+#'
 #' @export
 #'
 #' @examples
+#'
+#'  # read in the data
+#'  dat <- collect_tables("UWIN_DB_CHIL.accdb")
+#'
+#'  # apply qaqc
+#'  dat <- do_qaqc(dat)
+#'
+#'  # collect only one season of data
+#'  dat <- reduce_seasons(dat, start = "JU17")
+#'
+#'  # make observation matrix
+#'  obser_matrix <- create_observation_matrix(dat)
+#'
+#'  # make a detection matrix
+#'  detect_matrix <- create_detection_matrix(dat, obser_matrix)
+#'
 create_detection_matrix <- function( uwin_data = NULL,
   observation_matrix = NULL, binomial_detections = FALSE,
-  select_species = FALSE, species = NULL){
+  select_species = TRUE, species = NULL){
 
   # simple error checks
   if( !is.logical( select_species ) ) {
@@ -373,10 +396,12 @@ create_detection_matrix <- function( uwin_data = NULL,
     # check to see if there are species put into argument that are not
     # in the species table
     error_species <- species[ which( !species %in% uwin_data$Species$ShortName)]
+    if( length( error_species ) > 0 ) {
     stop(paste0("\nA species provided in the species argument is either\n",
-          "misspelledor not in the Species table of the UWIN database.\n",
+          "misspelled or not in the Species table of the UWIN database.\n",
           "This error was generated from the following entries:\n\n",
       paste(error_species, collapse = "\n") ) )
+    }
     # make choices species
     choices <- species
     } # end if // species has a character vector argument
@@ -439,10 +464,74 @@ create_detection_matrix <- function( uwin_data = NULL,
 
   # determine which sites these detections occured
 
+  # first, determine which sites have had detection data entered.
+  has_detections <- uwin_data$Detections %>%
+    dplyr::left_join( . , uwin_data$Photos, by = "ImageID" ) %>%
+    dplyr::left_join( . , uwin_data$Visits, by = "VisitID" ) %>%
+    dplyr::select( dplyr::one_of( "SurveyID" ) ) %>%
+    dplyr::distinct()
+
+  # if there are detections then fill the detection matrix with a 0 for each
+  # active day in the observation matrix
+
+  ##################### FIX FOR MULTIPLE SEASONS ########################
+
+    if(binomial_detections) {
+      binom_ymat <- vector( "list", length = length( ymat ) )
+    }
+    for( i in 1:length( ymat ) ){
+    obmat_zeros <- observation_matrix$mat
+    obmat_zeros[obmat_zeros == 0] <- NA # make zeros NA
+    obmat_zeros[obmat_zeros == 1] <- 0 # makes 1's a zero
+    obmat_zeros <- array(as.numeric(as.matrix(obmat_zeros)),
+      dim = dim(ymat[[i]])) # make dimensions of ymat array
+    to_change <- grep( paste0( has_detections$SurveyID, collapse = "|"),
+      row.names( ymat[[i]] ) ) # which rows to change
+    ymat[[i]][to_change,,] <- obmat_zeros[to_change,,]
+
+
+  indx <-   photos %>%
+    dplyr::filter( SurveyID %in% row.names(ymat[[i]])) %>%
+    dplyr::mutate(
+    d1fac = as.numeric(factor(SurveyID, levels = row.names(ymat[[i]]))),
+      d2fac = as.numeric(factor(Date,
+        levels = as.character(observation_matrix$days_active))),
+      d3fac = as.numeric(factor(SpeciesID, levels = choices_num$SpeciesID))) %>%
+      dplyr::select( dplyr::one_of( c( "d1fac", "d2fac", "d3fac")))
+
+  # remove duplicate rows
+  indx <- indx[!duplicated(indx),]
+
+  for( j in 1:nrow( indx ) ) {
+    # If ymat is NA at this point it means that we have changed the
+    # active dates to exclude data. We do not want to write over these.
+    if(! is.na(ymat[[i]][indx$d1fac[j], indx$d2fac[j], indx$d3fac[j]])) {
+      ymat[[i]][indx$d1fac[j], indx$d2fac[j], indx$d3fac[j]] <- 1
+    } # close if // don't overwrite NA
+   } # close for // 1 through each day observed
+
+  if( binomial_detections ) {
+    # gets the sites we know we sampled
+    to_keep <- apply(ymat[[i]], c(1,3), function(x) sum(!is.na(x)))
+    to_NA <- which( to_keep[,1] == 0)
+
+    binom_ymat[[i]] <- apply(ymat[[i]], c(1,3), sum, na.rm = TRUE)
+    binom_ymat[[i]][to_NA, ] <- NA
+  }
+  } # close for // for each sampling season
+
+
+
+
+    # ADD MORE FUNCTIONALITY TO THIS FOR MULTIPLE SEASONS
+  if(binomial_detections) {
+    return( list( mat = ymat, binom_mat = binom_ymat) )
+  } else {
+    return(ymat)
+  }
 
 
 }
-
 
 
 

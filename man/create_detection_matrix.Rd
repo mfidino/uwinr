@@ -5,7 +5,7 @@
 \title{Create species detection non-detection matrix}
 \usage{
 create_detection_matrix(uwin_data = NULL, observation_matrix = NULL,
-  binomial_detections = FALSE, select_species = FALSE, species = NULL)
+  binomial_detections = FALSE, select_species = TRUE, species = NULL)
 }
 \arguments{
 \item{uwin_data}{The list object returned from \code{\link{collect_tables}}
@@ -26,13 +26,38 @@ not operable.}
 to select the species you would like to make a detection matrix for. You
 can hold \code{Ctrl} to select multiple species that are seperated by
 other species you do not want to make a detection matrix for. Defaults
-to FALSE.}
+to TRUE.}
 
 \item{species}{A vector of the species names from the \code{ShortName}
 column of the \code{Species} table within the UWIN database. If left NULL
 and \code{select_species = FALSE} then a detection matrix
 will be made for each species in the \code{Species} table.}
 }
+\value{
+A list with three elements. The first element, \code{mat}, contains
+  a survey ID (i.e., site-season-year abbreviation). The second element,
+   \code{days_active}, is a vector of the days that camera traps were active
+   in a given season. The final element, \code{binom_mat} is the total number
+   of days a camera trap was active on a given season.
+}
 \description{
 Create species detection non-detection matrix
+}
+\examples{
+
+ # read in the data
+ dat <- collect_tables("UWIN_DB_CHIL.accdb")
+
+ # apply qaqc
+ dat <- do_qaqc(dat)
+
+ # collect only one season of data
+ dat <- reduce_seasons(dat, start = "JU17")
+
+ # make observation matrix
+ obser_matrix <- create_observation_matrix(dat)
+
+ # make a detection matrix
+ detect_matrix <- create_detection_matrix(dat, obser_matrix)
+
 }

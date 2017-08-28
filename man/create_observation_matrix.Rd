@@ -4,19 +4,12 @@
 \alias{create_observation_matrix}
 \title{The number of days each camera trap is operable per season}
 \usage{
-create_observation_matrix(uwin_data = NULL, binomial_detections = FALSE,
-  drop_tails = FALSE)
+create_observation_matrix(uwin_data = NULL, drop_tails = FALSE)
 }
 \arguments{
 \item{uwin_data}{The list object returned from \code{\link{collect_tables}}
 and after it has been through \code{\link{do_qaqc}} .
 If the \code{Visits} table is not within this object an error will occur.}
-
-\item{binomial_detections}{If \code{TRUE}, \code{create_observation_matrix}
-will return the total number of days a site was operable. If \code{FALSE},
-\code{create_observation_matrix} will return a vector of binary elements that
-take the value of \code{1} if it was operable on a given day or \code{0} if
-it was not.}
 
 \item{drop_tails}{This will check if the date range for a site taken from
 the camera trap images occurs between when the camera set date and camera
@@ -26,11 +19,13 @@ sampling season or > 7 days after the last recorded camera pull for a
 sampling season then those days will be removed from the analysis.}
 }
 \value{
-A list with two elements. The first element, \code{mat}, contains
+A list with 3 elements. The first element, \code{mat}, contains
   either a survey ID (i.e., site-season-year abbrevaition) by date matrix
   if \code{binomial_detections = FALSE} or a named vector of the number of
   days each survey ID was active. The second element, \code{days_active},
   is a vector of the days that camera traps were active in a given season.
+  The final element, \code{binom_mat}, is a binomial version of the
+  \code{mat} element (i.e., the rowSums from \code{mat}).
 }
 \description{
 The number of days each camera trap is operable per season

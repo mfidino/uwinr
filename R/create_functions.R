@@ -336,7 +336,7 @@ that the date/time data on your images is correct.")
 #'   to TRUE.
 #'
 #' @return A list with three elements. The first element, \code{mat}, contains
-#'   a survey ID (i.e., site-season-year abbreviation). The second element,
+#'    a survey ID (i.e., site-season-year abbreviation). The second element,
 #'    \code{days_active}, is a vector of the days that camera traps were active
 #'    in a given season. The final element, \code{binom_mat} is the total number
 #'    of days a camera trap was active on a given season.

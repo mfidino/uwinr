@@ -1,10 +1,15 @@
 # uwinr
--------
 
-An R package to query and summarize camera trap data from the Urban Wildlife Information Network (UWIN) database.
+
+An R package to query and summarize camera trap data from the Urban Wildlife Information Network (UWIN) database. Furthermore, uwinr provides a number of quality assurance / quality control checks to ensure that data has been entered correctly. A general workflow using uwinr looks like:
+
+1. Pull a copy of the UWIN database into R.
+2. Perform checks on the database to ensure that data is correctly entered.
+..* If there are errors, view the error report that is generated, address the issues within the database, and return to step 1.
+3. Query the seasons of data you are interested in summarizing.
+4. Summarize the data the way you would like to (e.g., detection histories for each species).
 
 ## Setup
---------
 
 This package was written in R version 3.3.3. Please update R to at least this version before trying to install this package. 
 The [installr](https://cran.r-project.org/web/packages/installr/index.html) package makes updating R easy.
@@ -18,4 +23,28 @@ Downloading this package requires the use of `install_github()` function from th
 `install.packages("devtools") # if you do not already have this R package`
 `library(devtools) # load the devtools package`
 `install_github(mfidino/uwinr) # install uwinr`
+
+## Usage
+
+``` r
+library(uwinr)
+
+# bring in your data, assuming that at copy of your UWIN database is within your 
+# current working directory
+uwin_db <- collect_tables( "UWIN_DB_CHIL.accdb" )
+
+# apply quality assurance / quality control
+qaqc_uwin <- do_qaqc( uwin_db )
+
+# get only the seasons we are interested in
+uwin_ju17 <- reduce_seasons( qaqc_uwin, start = "JU17" )
+
+# create an observation matrix (the number of days a camera trap was active each season)
+obs_mat <- create_observation_matrix( uwin_ju17 )
+
+# create a detection history
+de_mat <- create_detection_matrix( uwin_ju17, obs_mat, binomial_detections = TRUE)
+```
+
+Like any other R package, each of these functions have their own help files.
 

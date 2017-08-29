@@ -1,12 +1,11 @@
 Package: uwinr
 Type: Package
-Title: What the Package Does (Title Case)
+Title: An R package to query and summarize camera trap data from the Urban Wildlife Information Network (UWIN) database
 Version: 0.1.0
-Author: Who wrote it
-Maintainer: The package maintainer <yourself@somewhere.net>
-Description: More about what it does (maybe more than one line)
-    Use four spaces when indenting paragraphs within the Description.
-License: What license is it under?
+Author: Mason Fidino
+Maintainer: Mason Fidino <mfidino@lpzoo.org>
+Description: An R package to query and summarize camera trap data from the Urban Wildlife Information Network (UWIN) database. Furthermore, uwinr provides a number of quality assurance / quality control checks to ensure that data has been entered correctly.
+License: Apache-2.0
 Encoding: UTF-8
 LazyData: true
 RoxygenNote: 6.0.1
@@ -16,5 +15,6 @@ Depends:
   dplyr,
   data.table
 Imports:
-  RODBC
+  RODBC,
+  reshape2
   

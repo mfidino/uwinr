@@ -20,7 +20,7 @@
 #'
 #' @examples
 #'  # read in the data
-#'  uwin_list <- collect_table("UWIN_DB_CHIL.accdb")
+#'  uwin_list <- collect_tables("UWIN_DB_CHIL.accdb")
 #'
 #'  # check for errors
 #'  uwin_list <- do_qaqc(uwin_list)
@@ -52,7 +52,7 @@ censor_photos <- function(uwin_data = NULL) {
             sep = "")
     stop(error_report)
   }
-  if (!"VisitsDateTime" %in% colnames(uwin_data$Visits)) {
+  if (!"VisitDateTime" %in% colnames(uwin_data$Visits)) {
     emess <- c(" You are attempting to censor data before running do_qaqc.",
                "\tPlease  use do_qaqc before summarizing these data.")
     stop(paste(emess, collapse = "\n"))
@@ -73,7 +73,7 @@ censor_photos <- function(uwin_data = NULL) {
   # Remove images (and resulting detections)
   # that started 30 days before set
   start_b4 <- uwinr:::create_time_check(phvi, TRUE)
-  if (nrow(starts_b4 > 0)) {
+  if (nrow(start_b4) > 0 ) {
     to_go <- which(uwin_data$Photos$ImageID %in% start_b4$ImageID)
       if (length(to_go) > 0) {
         uwin_data$Photos <- uwin_data$Photos[-to_go,]
@@ -87,7 +87,7 @@ censor_photos <- function(uwin_data = NULL) {
   # Remove images (and resulting detections)
   # that occured 30 days after pull
   ends_aft <- uwinr:::create_time_check(phvi, FALSE)
-  if (nrow(ends_aft > 0)) {
+  if (nrow(ends_aft) > 0) {
     to_go <- which(uwin_data$Photos$ImageID %in% ends_aft$ImageID)
     if (length(to_go) > 0) {
       uwin_data$Photos <- uwin_data$Photos[-to_go,]

@@ -11,8 +11,7 @@ create_surveyID <- function(x = NULL){
   return(x)
 }
 
-
-
+#' @importFrom stats lag
 create_time_check <- function(x = NULL, start = NULL) {
   # used within photos_qaqc
 
@@ -105,6 +104,7 @@ create_split <- function(x = NULL, addn = TRUE) {
 #'   \code{mat} element (i.e., the rowSums from \code{mat}).
 #'
 #' @export
+#' @importFrom reshape2 melt dcast
 #'
 #' @examples
 #'
@@ -141,7 +141,7 @@ create_observation_matrix <- function(uwin_data = NULL,
   photoID <- uwin_data$Visits %>%
     dplyr::select(dplyr::one_of(c("SurveyID", "VisitID", "VisitDateTime",
       "ActiveStart", "ActiveEnd", "VisitTypeID"))) %>%
-    na.omit
+    data.table::na.omit
 
   # split into checks and pull
   checks <- photoID[VisitTypeID == 2]
@@ -342,6 +342,7 @@ that the date/time data on your images is correct.")
 #'    of days a camera trap was active on a given season.
 #'
 #' @export
+#' @importFrom utils select.list
 #'
 #' @examples
 #'

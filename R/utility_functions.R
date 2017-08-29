@@ -158,8 +158,7 @@ reduce_seasons <- function(uwin_data = NULL, start = NULL, end = NULL){
   return(uwin_data)
 }
 
-#' @title Format the detection table in UWIN database
-#'
+
 
 format_detections <- function(uwin_data = NULL, only_verified = FALSE) {
   if (!exists("Detections", uwin_data)){

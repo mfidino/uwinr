@@ -8,6 +8,10 @@
 #'   Photos (\code{\link{photos_qaqc}}).
 #'
 #' @param uwin_data The list object returned from \code{\link{collect_tables}}.
+#' @param show_error_file If \code{TRUE}, then an error report will be opened
+#'   up if there are errors in the UWIN database. This error report will direct
+#'   you to a number of csv files within an errors sub-folder within your
+#'   working directory.
 #'
 #' @return Returns the list object from \code{\link{collect_tables}}.
 #'   Furthermore, this function will create a sub-folder in your
@@ -29,6 +33,8 @@
 #' uwin_list <- do_qaqc(uwin_list)
 #'
 #' @export
+#' @importFrom utils file.edit write.csv
+#'
 #'
 do_qaqc <- function(uwin_data = NULL, show_error_file = TRUE) {
   oname <- deparse(substitute(uwin_data))
@@ -661,8 +667,10 @@ photos_qaqc <- function(uwin_data = NULL, file_conn = NULL){
     to_spl <- uwinr:::create_split("-", FALSE)
 
     uwinr:::fwrt("\n --- PHOTOS TABLE ---\n", file_conn)
-    to_add <- c("These errors should be fixed if possible (e.g., date set wrong)",
-      "but will be censored when data are further summarized\n")
+    to_add <- c("These errors need to be fixed if possible (e.g., date set wrong)",
+      "but will be censored when data are further summarized.\n",
+      "However, the 'Active Dates' in the Visits table must be\n",
+      "manually altered for each site that these errors occur.")
     uwinr:::fwrt(paste(to_add, collapse = "\n"), file_conn)
     if(errors[1] == 1) {
       ereport <- c("There are images in the 'Photos' table with timestamps that",

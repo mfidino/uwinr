@@ -8,6 +8,11 @@ do_qaqc(uwin_data = NULL, show_error_file = TRUE)
 }
 \arguments{
 \item{uwin_data}{The list object returned from \code{\link{collect_tables}}.}
+
+\item{show_error_file}{If \code{TRUE}, then an error report will be opened
+up if there are errors in the UWIN database. This error report will direct
+you to a number of csv files within an errors sub-folder within your
+working directory.}
 }
 \value{
 Returns the list object from \code{\link{collect_tables}}.

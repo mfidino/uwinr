@@ -34,7 +34,7 @@ Returns the list object from \code{\link{collect_tables}} with data
 two seasons depending on how arguments are filled.
 }
 \examples{
-dat <- collect_tables("UWIN_DB_CHIL.accdb")
+# not run: dat <- collect_tables("UWIN_DB_CHIL.accdb")
 
 dat <- reduce_seasons(dat, start = "JA16", end = "JU17")
 

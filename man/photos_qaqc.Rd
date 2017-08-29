@@ -27,7 +27,7 @@ an error will occur.}
 }
 \examples{
 # Load data from database
-uwin_list <- collect_tables("UWIN_DB_CHIL.accdb")
+# not run: uwin_list <- collect_tables("UWIN_DB_CHIL.accdb")
 
 # apply qaqc to 'Photos' table
 uwin_list <- photos_qaqc(uwin_list)

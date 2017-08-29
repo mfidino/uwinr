@@ -25,8 +25,8 @@
 #' @author Mason Fidino
 #'
 #' @examples
-#' dat <- collect_tables("UWIN_DB_CHIL.accdb")
-#' dat <- collect_tables("UWIN_DB_CHIL.accdb", tables = c("Photos", "Visits"))
+#' # not run: dat <- collect_tables("UWIN_DB_CHIL.accdb")
+#' # not run: dat <- collect_tables("UWIN_DB_CHIL.accdb", tables = c("Photos", "Visits"))
 #'
 #' @export
 #' @importFrom RODBC odbcConnectAccess2007 sqlFetch odbcClose
@@ -89,7 +89,7 @@ return(uwin_data)
 #' @author Mason Fidino
 #'
 #' @examples
-#' dat <- collect_tables("UWIN_DB_CHIL.accdb")
+#' # not run: dat <- collect_tables("UWIN_DB_CHIL.accdb")
 #'
 #' dat <- reduce_seasons(dat, start = "JA16", end = "JU17")
 #'

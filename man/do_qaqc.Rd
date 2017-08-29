@@ -34,7 +34,7 @@ Returns the list object from \code{\link{collect_tables}}.
 }
 \examples{
 # Load data from database
-uwin_list <- collect_tables("UWIN_DB_CHIL.accdb")
+# not run: uwin_list <- collect_tables("UWIN_DB_CHIL.accdb")
 
 # do qaqc
 uwin_list <- do_qaqc(uwin_list)

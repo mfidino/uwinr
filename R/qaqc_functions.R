@@ -27,7 +27,7 @@
 #'
 #' @examples
 #' # Load data from database
-#' uwin_list <- collect_tables("UWIN_DB_CHIL.accdb")
+#' # not run: uwin_list <- collect_tables("UWIN_DB_CHIL.accdb")
 #'
 #' # do qaqc
 #' uwin_list <- do_qaqc(uwin_list)
@@ -98,7 +98,7 @@ do_qaqc <- function(uwin_data = NULL, show_error_file = TRUE) {
 #'
 #' @examples
 #' # Load data from database
-#' uwin_list <- collect_tables("UWIN_DB_CHIL.accdb")
+#' # not run: uwin_list <- collect_tables("UWIN_DB_CHIL.accdb")
 #'
 #' # apply qaqc to 'Visits' table
 #' uwin_list <- visits_qaqc(uwin_data = uwin_list)
@@ -579,7 +579,7 @@ return(uwin_data)
 #'
 #' @examples
 #' # Load data from database
-#' uwin_list <- collect_tables("UWIN_DB_CHIL.accdb")
+#' # not run: uwin_list <- collect_tables("UWIN_DB_CHIL.accdb")
 #'
 #' # apply qaqc to 'Photos' table
 #' uwin_list <- photos_qaqc(uwin_list)

@@ -32,8 +32,8 @@ A named list of tables from the UWIN database. Each table will be
   \href{https://www.microsoft.com/en-us/download/details.aspx?id=13255}{here}.
 }
 \examples{
-dat <- collect_tables("UWIN_DB_CHIL.accdb")
-dat <- collect_tables("UWIN_DB_CHIL.accdb", tables = c("Photos", "Visits"))
+# not run: dat <- collect_tables("UWIN_DB_CHIL.accdb")
+# not run: dat <- collect_tables("UWIN_DB_CHIL.accdb", tables = c("Photos", "Visits"))
 
 }
 \author{

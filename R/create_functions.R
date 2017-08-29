@@ -109,7 +109,7 @@ create_split <- function(x = NULL, addn = TRUE) {
 #' @examples
 #'
 #'  # read in the data
-#'  dat <- collect_tables("UWIN_DB_CHIL.accdb")
+#'  # not run: dat <- collect_tables("UWIN_DB_CHIL.accdb")
 #'
 #'  # apply qaqc
 #'  dat <- do_qaqc(dat)
@@ -347,7 +347,7 @@ that the date/time data on your images is correct.")
 #' @examples
 #'
 #'  # read in the data
-#'  dat <- collect_tables("UWIN_DB_CHIL.accdb")
+#'  # not run: dat <- collect_tables("UWIN_DB_CHIL.accdb")
 #'
 #'  # apply qaqc
 #'  dat <- do_qaqc(dat)

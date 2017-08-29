@@ -33,7 +33,7 @@ The number of days each camera trap is operable per season
 \examples{
 
  # read in the data
- dat <- collect_tables("UWIN_DB_CHIL.accdb")
+ # not run: dat <- collect_tables("UWIN_DB_CHIL.accdb")
 
  # apply qaqc
  dat <- do_qaqc(dat)

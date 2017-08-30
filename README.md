@@ -22,7 +22,7 @@ Downloading this package requires the use of `install_github()` function from th
 ``` r
 install.packages("devtools") # if you do not already have this R package
 library(devtools) # load the devtools package
-install_github(mfidino/uwinr) # install uwinr
+install_github("mfidino/uwinr") # install uwinr
 ```
 
 ## Usage

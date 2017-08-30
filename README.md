@@ -47,5 +47,5 @@ obs_mat <- create_observation_matrix( uwin_ju17 )
 de_mat <- create_detection_matrix( uwin_ju17, obs_mat, binomial_detections = TRUE)
 ```
 
-Like any other R package, each of these functions have their own help files.
+For further documentation on all off the functions in uwinr, see the manual located [here](https://github.com/mfidino/uwinr/blob/master/uwinr.pdf).
 

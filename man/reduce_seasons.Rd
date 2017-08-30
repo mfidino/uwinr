@@ -34,14 +34,13 @@ Returns the list object from \code{\link{collect_tables}} with data
 two seasons depending on how arguments are filled.
 }
 \examples{
-# not run: dat <- collect_tables("UWIN_DB_CHIL.accdb")
 
+dat <- do_qaqc(uwin_test)
 dat <- reduce_seasons(dat, start = "JA16", end = "JU17")
 
 # if only collecting data from one season.
 
-dat <- collect_tables("UWIN_DB_CHIL.accdb")
-
+dat <- do_qaqc(uwin_test)
 dat <- reduce_seasons(dat, start = "JA16")
 
 }

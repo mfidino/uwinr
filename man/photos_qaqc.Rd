@@ -26,11 +26,8 @@ an error will occur.}
   as the timestamps are compared to the set and pull records in this table.
 }
 \examples{
-# Load data from database
-# not run: uwin_list <- collect_tables("UWIN_DB_CHIL.accdb")
 
-# apply qaqc to 'Photos' table
-uwin_list <- photos_qaqc(uwin_list)
+uwin_list <- photos_qaqc(uwin_data = uwin_test)
 }
 \author{
 Mason Fidino

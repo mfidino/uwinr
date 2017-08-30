@@ -32,11 +32,8 @@ Returns \code{uwin_data}, will stop if data is not correctly entered
   in the UWIN database.
 }
 \examples{
-# Load data from database
-# not run: uwin_list <- collect_tables("UWIN_DB_CHIL.accdb")
 
-# apply qaqc to 'Visits' table
-uwin_list <- visits_qaqc(uwin_data = uwin_list)
+uwin_list <- visits_qaqc(uwin_data = uwin_test)
 
 }
 \author{

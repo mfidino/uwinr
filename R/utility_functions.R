@@ -30,6 +30,7 @@
 #'
 #' @export
 #' @importFrom RODBC odbcConnectAccess2007 sqlFetch odbcClose
+#' @importFrom data.table data.table
 collect_tables <- function(database = NULL, tables = NULL) {
 # Error handling
 if (is.null(database)) {
@@ -88,15 +89,16 @@ return(uwin_data)
 #'
 #' @author Mason Fidino
 #'
-#' @examples
-#' # not run: dat <- collect_tables("UWIN_DB_CHIL.accdb")
+#' @importFrom magrittr "%>%"
 #'
+#' @examples
+#'
+#' dat <- do_qaqc(uwin_test)
 #' dat <- reduce_seasons(dat, start = "JA16", end = "JU17")
 #'
 #' # if only collecting data from one season.
 #'
-#' dat <- collect_tables("UWIN_DB_CHIL.accdb")
-#'
+#' dat <- do_qaqc(uwin_test)
 #' dat <- reduce_seasons(dat, start = "JA16")
 #'
 #' @export
@@ -189,7 +191,8 @@ datetime <- function(x) {
 }
 
 
-
+#' @importFrom magrittr "%>%"
+#' @importFrom dplyr select one_of bind_rows right_join
 convert_sid <- function( sid = NULL, uwin_data = NULL ) {
 
   # converts a surveyID to a vector [LocationName, Season, Year]
@@ -197,7 +200,7 @@ convert_sid <- function( sid = NULL, uwin_data = NULL ) {
 
   split_sid <- unlist(strsplit(sid, "-")) %>% as.numeric %>%
     matrix(., ncol = 3, nrow = length(sid), byrow = TRUE) %>%
-    data.table
+    data.table::data.table
 
   colnames(split_sid) <- c("LocationID", "SeasonID", "Year")
 

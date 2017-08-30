@@ -26,13 +26,14 @@ This function requires the following tables in the list object to
 
   Furthermore, \code{\link{do_qaqc}} must be applied to the uwin list object
   before photos can be summarised.
+
+  @importFrom magrittr %>%
+  @importFrom dplyr left_join select one_of
 }
 \examples{
- # read in the data
- # not run: uwin_list <- collect_tables("UWIN_DB_CHIL.accdb")
 
  # check for errors
- uwin_list <- do_qaqc(uwin_list)
+ uwin_list <- do_qaqc(uwin_test)
 
  # censor the photos
  uwin_list <- censor_photos(uwin_data = uwin_list)

@@ -1,5 +1,5 @@
 
-
+#' @importFrom data.table year
 create_surveyID <- function(x = NULL){
   if (!"SurveyID" %in% colnames(x)) {
     #season_switch <- c(2, 3, 4, 1)
@@ -12,6 +12,8 @@ create_surveyID <- function(x = NULL){
 }
 
 #' @importFrom stats lag
+#' @importFrom magrittr "%>%"
+#' @importFrom dplyr select one_of group_by mutate distinct filter left_join summarise
 create_time_check <- function(x = NULL, start = NULL) {
   # used within photos_qaqc
 
@@ -39,7 +41,9 @@ create_time_check <- function(x = NULL, start = NULL) {
   return(chck[issues,])
 }
 
-
+#' @importFrom magrittr "%>%"
+#' @importFrom dplyr mutate group_by summarise select one_of
+#' @importFrom data.table setkey data.table
 create_photo_time_summary <- function(x = NULL) {
   data.table::setkey(x, SurveyID, ImageID)
   ans <- x %>% dplyr::group_by(SurveyID) %>%
@@ -104,15 +108,16 @@ create_split <- function(x = NULL, addn = TRUE) {
 #'   \code{mat} element (i.e., the rowSums from \code{mat}).
 #'
 #' @export
-#' @importFrom reshape2 melt dcast
+#' @importFrom magrittr "%>%"
+#' @importFrom stats na.omit
+#' @importFrom dplyr select one_of group_by mutate distinct filter left_join summarise
+#' @importFrom data.table data.table setkey melt dcast
 #'
 #' @examples
 #'
-#'  # read in the data
-#'  # not run: dat <- collect_tables("UWIN_DB_CHIL.accdb")
 #'
 #'  # apply qaqc
-#'  dat <- do_qaqc(dat)
+#'  dat <- do_qaqc(uwin_test)
 #'
 #'  # collect only one season of data
 #'  dat <- reduce_seasons(dat, start = "JU17")
@@ -141,7 +146,7 @@ create_observation_matrix <- function(uwin_data = NULL,
   photoID <- uwin_data$Visits %>%
     dplyr::select(dplyr::one_of(c("SurveyID", "VisitID", "VisitDateTime",
       "ActiveStart", "ActiveEnd", "VisitTypeID"))) %>%
-    data.table::na.omit
+    stats::na.omit(.)
 
   # split into checks and pull
   checks <- photoID[VisitTypeID == 2]
@@ -222,9 +227,9 @@ create_observation_matrix <- function(uwin_data = NULL,
 
 
   # melt list to dataframe
- days_long <- reshape2::melt(both_list)
+ days_long <- data.table::melt(both_list)
   # make it wide
- days_wide <- reshape2::dcast(data = days_long, formula = L1 ~ value,
+ days_wide <- data.table::dcast(data = days_long, formula = L1 ~ value,
    fun.aggregate = length)
  # make rownames the surveyID
  row.names(days_wide) <- days_wide$L1
@@ -343,14 +348,15 @@ that the date/time data on your images is correct.")
 #'
 #' @export
 #' @importFrom utils select.list
+#' @importFrom magrittr "%>%"
+#' @importFrom dplyr select one_of group_by mutate distinct filter left_join summarise
+#' @import data.table
 #'
 #' @examples
 #'
-#'  # read in the data
-#'  # not run: dat <- collect_tables("UWIN_DB_CHIL.accdb")
 #'
 #'  # apply qaqc
-#'  dat <- do_qaqc(dat)
+#'  dat <- do_qaqc(uwin_test)
 #'
 #'  # collect only one season of data
 #'  dat <- reduce_seasons(dat, start = "JU17")
@@ -359,7 +365,7 @@ that the date/time data on your images is correct.")
 #'  obser_matrix <- create_observation_matrix(dat)
 #'
 #'  # make a detection matrix
-#'  detect_matrix <- create_detection_matrix(dat, obser_matrix)
+#'  detect_matrix <- create_detection_matrix(dat, obser_matrix, species = "raccoon")
 #'
 create_detection_matrix <- function( uwin_data = NULL,
   observation_matrix = NULL, binomial_detections = FALSE,
@@ -426,7 +432,7 @@ create_detection_matrix <- function( uwin_data = NULL,
   # observation matrix
   photos <- uwin_data$Photos %>%
     dplyr::filter( ImageID %in% detects$ImageID) %>%
-    mutate(Date = format(ImageDate, format = "%Y-%m-%d")) %>%
+    dplyr::mutate(Date = format(ImageDate, format = "%Y-%m-%d")) %>%
     dplyr::filter(Date %in% format(observation_matrix$days_active,
       format = "%Y-%m-%d")) %>%
     dplyr::left_join(., detects, by = "ImageID") %>%
@@ -454,7 +460,7 @@ create_detection_matrix <- function( uwin_data = NULL,
   for( i in 1:nseason ) {
     # get surveyID for a given season
     sites_per_survey[[i]] <- uwin_data$Visits %>%
-      dplyr::filter(.,grep(paste0(names(nsite)[i],"$"), SurveyID)) %>%
+      dplyr::filter(.,grepl(paste0(names(nsite)[i],"$"), SurveyID)) %>%
       dplyr::select( dplyr::one_of( "SurveyID" ) ) %>% unique
     # make a blank detection matrix
     ymat[[i]] <- array( NA, dim = c(nsite, nday, nspec ),
@@ -526,7 +532,9 @@ create_detection_matrix <- function( uwin_data = NULL,
 
     # ADD MORE FUNCTIONALITY TO THIS FOR MULTIPLE SEASONS
   if(binomial_detections) {
-    return( list( mat = ymat, binom_mat = binom_ymat) )
+    to_return <- c(ymat, binom_ymat)
+    names(to_return) <- c("mat", "binom_mat")
+    return( to_return )
   } else {
     return(ymat)
   }

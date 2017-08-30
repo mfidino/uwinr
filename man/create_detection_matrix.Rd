@@ -45,11 +45,9 @@ Create species detection non-detection matrix
 }
 \examples{
 
- # read in the data
- # not run: dat <- collect_tables("UWIN_DB_CHIL.accdb")
 
  # apply qaqc
- dat <- do_qaqc(dat)
+ dat <- do_qaqc(uwin_test)
 
  # collect only one season of data
  dat <- reduce_seasons(dat, start = "JU17")
@@ -58,6 +56,6 @@ Create species detection non-detection matrix
  obser_matrix <- create_observation_matrix(dat)
 
  # make a detection matrix
- detect_matrix <- create_detection_matrix(dat, obser_matrix)
+ detect_matrix <- create_detection_matrix(dat, obser_matrix, species = "raccoon")
 
 }

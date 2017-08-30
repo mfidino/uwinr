@@ -33,11 +33,9 @@ Returns the list object from \code{\link{collect_tables}}.
   Photos (\code{\link{photos_qaqc}}).
 }
 \examples{
-# Load data from database
-# not run: uwin_list <- collect_tables("UWIN_DB_CHIL.accdb")
 
-# do qaqc
-uwin_list <- do_qaqc(uwin_list)
+# do qaqc, assuming you had loaded data with collect_tables
+uwin_list <- do_qaqc(uwin_test)
 
 }
 \author{

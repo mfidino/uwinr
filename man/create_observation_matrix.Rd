@@ -32,11 +32,9 @@ The number of days each camera trap is operable per season
 }
 \examples{
 
- # read in the data
- # not run: dat <- collect_tables("UWIN_DB_CHIL.accdb")
 
  # apply qaqc
- dat <- do_qaqc(dat)
+ dat <- do_qaqc(uwin_test)
 
  # collect only one season of data
  dat <- reduce_seasons(dat, start = "JU17")

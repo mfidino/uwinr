@@ -26,14 +26,13 @@
 #' @author Mason Fidino
 #'
 #' @examples
-#' # Load data from database
-#' # not run: uwin_list <- collect_tables("UWIN_DB_CHIL.accdb")
 #'
-#' # do qaqc
-#' uwin_list <- do_qaqc(uwin_list)
+#' # do qaqc, assuming you had loaded data with collect_tables
+#' uwin_list <- do_qaqc(uwin_test)
 #'
 #' @export
 #' @importFrom utils file.edit write.csv
+#' @importFrom magrittr "%>%"
 #'
 #'
 do_qaqc <- function(uwin_data = NULL, show_error_file = TRUE) {
@@ -56,7 +55,7 @@ do_qaqc <- function(uwin_data = NULL, show_error_file = TRUE) {
 
   if(length(readLines(fpath)) == 17) {
     message("\nNo errors found\n")
-    assign(oname, uwin_data, envir = .GlobalEnv)
+    return(uwin_data)
   } else {
   message("do_qaqc finished, check error report for problems.\nIf show_error_file = TRUE (the default) than this will open automatically.\nIf not, look in error_reports subfolder")
 
@@ -97,33 +96,35 @@ do_qaqc <- function(uwin_data = NULL, show_error_file = TRUE) {
 #' @author Mason Fidino
 #'
 #' @examples
-#' # Load data from database
-#' # not run: uwin_list <- collect_tables("UWIN_DB_CHIL.accdb")
 #'
-#' # apply qaqc to 'Visits' table
-#' uwin_list <- visits_qaqc(uwin_data = uwin_list)
+#' uwin_list <- visits_qaqc(uwin_data = uwin_test)
 #'
 #' @export
+#' @importFrom magrittr "%>%"
+#' @importFrom dplyr select one_of group_by mutate distinct filter left_join ungroup
 #'
 visits_qaqc <- function(uwin_data = NULL, file_conn = NULL){
   if (!exists("Visits", uwin_data)){
     stop("The uwin data list does not include the Visits table,
       include 'Visits' in the 'tables' argument of collect_tables ")
   }
-  visits_log <- data.table(uwin_data$Visits)
+  visits_log <- data.table::data.table(uwin_data$Visits)
   visits_log$VisitDate <- as.Date(visits_log$VisitDate, format = "%Y-%m-%d")
-  visits_log$Action1ID <- as.factor(visits_log$Action1ID)
-  visits_log$Action2ID <- as.factor(visits_log$Action2ID)
-  visits_log$Action3ID <- as.factor(visits_log$Action3ID)
+  visits_log$Action1ID <- factor(visits_log$Action1ID,
+    levels = as.character(0:6))
+  visits_log$Action2ID <- factor(visits_log$Action2ID,
+    levels = as.character(0:6))
+  visits_log$Action3ID <- factor(visits_log$Action3ID,
+    levels = as.character(0:6))
 
   # vector that shows what errors occured
 
   #-------------
   ### QAQC ERROR: Same actions set twice in a visit
   #-------------
-  if (nrow(visits_log[visits_log$Action2ID == "1"]) > 0) {
-    visits_log[visits_log$Action2ID == "1"] <- within(
-      visits_log[Action2ID == "1"],{
+  if (nrow(visits_log[visits_log$Action2ID == "1",]) > 0) {
+    visits_log[visits_log$Action2ID == "1",] <- within(
+      visits_log[Action2ID == "1",],{
       Action2ID <- Action1ID #Move Action1 number to Action2
       Action1ID <- "1" #Make Action1 a "1"
     })
@@ -132,23 +133,22 @@ visits_qaqc <- function(uwin_data = NULL, file_conn = NULL){
   # if both are equal to 1 then we will still have an error.  We will
   # want to print this out.
   # If there is still an error, make a table of it.
-  if (nrow(visits_log[visits_log$Action2ID == "1"]) >0){
+  if (nrow(visits_log[visits_log$Action2ID == "1",]) >0){
     errors <- 1
   } else {
     errors <- 0
   }
 
   # do the same thing with Action 3 and Action 1
-  if (nrow(visits_log[visits_log$Action3ID == "1",]) > 0){
-    visits_log[visits_log$Action3ID == "1"] <-within(
-      visits_log[visits_log$Action3ID == "1"],{
-      Action3ID <- Action1ID
-      Action1ID <- "1"
-    })
+  if(nrow(visits_log[visits_log$Action3ID == "1",]) > 0){
+    to_switch <- which(visits_log$Action3ID == "1")
+    visits_log$Action3ID[to_switch] <- visits_log$Action1ID[to_switch]
+    visits_log$Action1ID[to_switch] <- "1"
+
   }
 
   # the same for Action3 and Action1
-  if (nrow(visits_log[visits_log$Action3ID == "1"]) >0){
+  if (nrow(visits_log[visits_log$Action3ID == "1",]) >0){
     errors <- c(errors, 1)
   } else {
     errors <- c(errors, 0)
@@ -279,6 +279,7 @@ min_max <- visits_log %>%
     MaxThresh = MaxVis + as.difftime( 7, units = "days" ) ) %>%
   dplyr::mutate(MinAct = ActiveStart < as.POSIXct( MinThresh ),
                 MaxAct = ActiveEnd   > as.POSIXct( MaxThresh)) %>%
+  dplyr::ungroup() %>%
   dplyr::select( dplyr::one_of( c( "SurveyID", "MinAct", "MaxAct",
     "ActiveStart", "ActiveEnd", "MinThresh", "MaxThresh", "VisitID") ) )
 
@@ -577,12 +578,12 @@ return(uwin_data)
 #'
 #' @author Mason Fidino
 #'
+#' @importFrom magrittr "%>%"
+#' @importFrom dplyr select one_of group_by mutate distinct filter left_join
+#' @export
 #' @examples
-#' # Load data from database
-#' # not run: uwin_list <- collect_tables("UWIN_DB_CHIL.accdb")
 #'
-#' # apply qaqc to 'Photos' table
-#' uwin_list <- photos_qaqc(uwin_list)
+#' uwin_list <- photos_qaqc(uwin_data = uwin_test)
 
 photos_qaqc <- function(uwin_data = NULL, file_conn = NULL){
   # check to make sure both tables are present

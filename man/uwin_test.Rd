@@ -23,9 +23,10 @@
      deployed to a numeric ID.}
    \item{lkupVisitTypes}{A lookup table that links the type of deployment
      events (i.e., camera set, camera check, and camera pull) to a numeric ID.}
-   }
-
- @source A whole bunch of camera trapping}
+   }}
+\source{
+A whole bunch of camera trapping
+}
 \usage{
 uwin_test
 }

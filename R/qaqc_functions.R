@@ -106,6 +106,7 @@ do_qaqc <- function(uwin_data = NULL, show_error_file = TRUE) {
 #'
 #' @export
 #' @importFrom magrittr "%>%"
+#' @importFrom stats na.omit
 #' @importFrom dplyr select one_of group_by mutate distinct filter left_join ungroup
 #'
 visits_qaqc <- function(uwin_data = NULL, file_conn = NULL){
@@ -437,11 +438,13 @@ if(nrow(n_na) > 0) {
       "NAActiveStart", "NAActiveEnd",
       "VisitID", "ImageDate", "VisitTypeID"))) %>%
     dplyr::group_by(VisitID) %>%
-    dplyr::mutate(MinDateInPhotos = min(ImageDate, na.rm = TRUE),
-                  MaxDateInPhotos = max(ImageDate, na.rm = TRUE)) %>%
+    dplyr::mutate(MinDateInPhotos = as.character(min(ImageDate, na.rm = TRUE)),
+              MaxDateInPhotos = as.character(max(ImageDate, na.rm = TRUE))) %>%
     dplyr::select(dplyr::one_of(c("VisitTypeID","SurveyID",
       "VisitID", "MinDateInPhotos", "MaxDateInPhotos" ))) %>%
-    dplyr::distinct()
+    dplyr::distinct() %>%
+    stats::na.omit(.)
+
    if(nrow(has_photos) > 0) {
     no_active <- data.frame(uwinr:::convert_sid(has_photos$SurveyID, uwin_data),
        has_photos)

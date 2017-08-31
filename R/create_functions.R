@@ -38,7 +38,7 @@ create_time_check <- function(x = NULL, start = NULL) {
       chck$VisitDateTime,
       units = "days")) > 7)
   }
-  return(chck[issues,])
+  return(chck[issues,] %>% data.table::data.table(.) )
 }
 
 #' @importFrom magrittr "%>%"

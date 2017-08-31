@@ -3,14 +3,15 @@
 #'
 #' @description \code{censor_photos} removes photos from the \code{'Photos'}
 #'   table and associated detections from the \code{'Detections'} table if the
-#'   time stamp on the photo is >30 days before a camera was set at a
-#'   site or > 30 days after a camera was pulled at a site. These latter values
-#'   are stored in the \code{'Visits'} table.
+#'   time stamp on the photo is > 7 days before a camera was set at
+#'   a site or > 7 days after a camera was pulled at a site.
+#'   These latter values are stored in the \code{'Visits'} table.
 #'
 #' @param uwin_data The list object returned from \code{\link{collect_tables}}.
 #'
 #' @return Returns the list object, but with offending photos and detections
-#'   removed from their respective tables.
+#'   removed from their respective tables. This also will update the active
+#'   dates within the 'Visits' table
 #'
 #' @details This function requires the following tables in the list object to
 #'   work : \code{'Photos'}, \code{'Detections'}, and \code{'Visits'}.
@@ -64,6 +65,8 @@ censor_photos <- function(uwin_data = NULL) {
     uwin_data$Visits <- uwinr:::create_surveyID(uwin_data$Visits)
   }
 
+
+
   # merge photos and visits
   varbs <- c("VisitTypeID","VisitDateTime", "ActiveStart",
              "ActiveEnd", "ImageDate", "ImageID", "SurveyID" )
@@ -98,6 +101,8 @@ censor_photos <- function(uwin_data = NULL) {
       uwin_data$Detections <- uwin_data$Detections[-to_go,]
     }
   }
+
+  cat(paste0(nrow(start_b4), " photos were censored."))
   return(uwin_data)
 
 }

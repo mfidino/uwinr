@@ -84,3 +84,7 @@ $RECYCLE.BIN/
 *.txt
 .Rproj.user
 
+# or example scripts
+
+*example*.R
+

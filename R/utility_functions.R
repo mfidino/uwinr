@@ -200,7 +200,7 @@ convert_sid <- function( sid = NULL, uwin_data = NULL ) {
 
   split_sid <- unlist(strsplit(sid, "-")) %>% as.numeric %>%
     matrix(., ncol = 3, nrow = length(sid), byrow = TRUE) %>%
-    data.table::data.table
+    data.table::data.table(.)
 
   colnames(split_sid) <- c("LocationID", "SeasonID", "Year")
 
@@ -216,43 +216,3 @@ convert_sid <- function( sid = NULL, uwin_data = NULL ) {
   return(to_return)
 
   }
-
-
-sid_2_mat <- function(sid = NULL, value = NULL) {
-
-
-  # winter is ID 4 in lkupSeasons, it should be 1
-  # for sorting reasons
-
-  #sid <- jmat$SurveyID
-  #value <- jmat$DaysActive
-
-  sid <- strsplit(sid, "-")
-  sid <- lapply(sid, as.numeric)
-  fx <- function(x) {
-    season_switch <- c(2,3,4,1)
-    return(data.frame(syear = paste(c(x[3], season_switch[x[2]]),
-      collapse = "-"),
-       site = x[1], stringsAsFactors = FALSE))
-  }
-
-
-  sid <- lapply(sid, fx)
-  sid <- dplyr::bind_rows(sid)
-  sid$syear <- factor(sid$syear)
-
-  n_sites <- length(unique(sid$site))
-  n_years <- length(unique(sid$syear))
-
-  y <- matrix(0, ncol = n_years, nrow = n_sites)
-  colnames(y) <- unique(sid$syear)
-  rownames(y) <- unique(sid$site)
-  sid <- data.table::data.table(sid, value)
-  data.table::setkey(sid, syear)
-  sid$site <- sid$site - min(sid$site) +1
-
-  sid_frame <- data.table::data.table(sid = sid, value = value)
-
-  }
-
-

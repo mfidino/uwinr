@@ -11,14 +11,15 @@ censor_photos(uwin_data = NULL)
 }
 \value{
 Returns the list object, but with offending photos and detections
-  removed from their respective tables.
+  removed from their respective tables. This also will update the active
+  dates within the 'Visits' table
 }
 \description{
 \code{censor_photos} removes photos from the \code{'Photos'}
   table and associated detections from the \code{'Detections'} table if the
-  time stamp on the photo is >30 days before a camera was set at a
-  site or > 30 days after a camera was pulled at a site. These latter values
-  are stored in the \code{'Visits'} table.
+  time stamp on the photo is > 7 days before a camera was set at
+  a site or > 7 days after a camera was pulled at a site.
+  These latter values are stored in the \code{'Visits'} table.
 }
 \details{
 This function requires the following tables in the list object to

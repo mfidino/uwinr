@@ -31,7 +31,7 @@
 #' uwin_list <- do_qaqc(uwin_test)
 #'
 #' @export
-#' @importFrom utils file.edit write.csv
+#' @importFrom utils write.csv
 #' @importFrom magrittr "%>%"
 #'
 #'
@@ -57,10 +57,15 @@ do_qaqc <- function(uwin_data = NULL, show_error_file = TRUE) {
     message("\nNo errors found\n")
     return(uwin_data)
   } else {
-  message("do_qaqc finished, check error report for problems.\nIf show_error_file = TRUE (the default) than this will open automatically.\nIf not, look in error_reports subfolder")
+  message("do_qaqc finished, check error report for problems.\nIf show_error_file = TRUE (the default) than this will open automatically.\nIf not, look in error_reports subfolder within your current working directory.")
 
   if(show_error_file) {
-    file.edit(fpath)
+     # open in Rstudio if that is what you are using
+    if ( Sys.getenv("RSTUDIO") == "1" ) {
+    get("file.edit")(fpath)
+    } else { # else open it in some other text editor
+      file.show(fpath)
+    }
   }
 
   return(uwin_data)
@@ -133,7 +138,7 @@ visits_qaqc <- function(uwin_data = NULL, file_conn = NULL){
   # if both are equal to 1 then we will still have an error.  We will
   # want to print this out.
   # If there is still an error, make a table of it.
-  if (nrow(visits_log[visits_log$Action2ID == "1",]) >0){
+  if (nrow(visits_log[visits_log$Action2ID == "1",]) >0){ # error 1
     errors <- 1
   } else {
     errors <- 0
@@ -148,7 +153,7 @@ visits_qaqc <- function(uwin_data = NULL, file_conn = NULL){
   }
 
   # the same for Action3 and Action1
-  if (nrow(visits_log[visits_log$Action3ID == "1",]) >0){
+  if (nrow(visits_log[visits_log$Action3ID == "1",]) >0){ # error 2
     errors <- c(errors, 1)
   } else {
     errors <- c(errors, 0)
@@ -179,7 +184,7 @@ ones <- n_actions[, grep("^1$", colnames(n_actions))]
 issues <- names(ones)[which(ones>1)]
 to_check_extra_ones <- visits_log[which(visits_log$SurveyID %in% issues),]
 # say something if write_errors = FALSE
-if (nrow(to_check_extra_ones)>0) {
+if (nrow(to_check_extra_ones)>0) { # error 3
   errors <- c(errors, 1)
 } else {
   errors <- c(errors, 0)
@@ -194,7 +199,7 @@ issues <- names(ones)[which(ones == 0)]
 to_check_no_ones <- visits_log[visits_log$SurveyID %in% issues,]
 
 # messge if write_errors is FALSE
-if (nrow(to_check_no_ones)>0) {
+if (nrow(to_check_no_ones)>0) { # error 4
   errors <- c(errors, 1)
 } else {
   errors <- c(errors, 0)
@@ -208,7 +213,7 @@ sixes <- n_actions[, grep("^6$", colnames(n_actions))]
 issues <- names(sixes)[which(sixes>1)]
 to_check_extra_sixes <- visits_log[visits_log$SurveyID %in% issues,]
 
-if (nrow(to_check_extra_sixes)>0) {
+if (nrow(to_check_extra_sixes)>0) { # error 5
   errors <- c(errors, 1)
 } else {
   errors <- c(errors, 0)
@@ -226,7 +231,7 @@ lt2 <- names(sids)[which(sids < 2)]
 # more than 3
 mt3 <- names(sids)[which(sids > 3)]
 
-if (length(lt2) > 0 | length(mt3) > 0) {
+if (length(lt2) > 0 | length(mt3) > 0) { # error 6
   errors <- c(errors, 1)
   to_check_row_error <- c(lt2, mt3)
 } else {
@@ -255,7 +260,7 @@ if (sum(check_decrease$IDDecreasing) > 0) {
     "\tthe data and attempt qaqc again.")
   stop(paste(emes, collapse = "\n"))
 }
-if (sum(check_decrease$DatesIncreasing) > 0) {
+if (sum(check_decrease$DatesIncreasing) > 0) { # error 7
   errors <- c(errors, 1)
   vdate_errors <- visits_log[which(visits_log$SurveyID %in%
       check_decrease$SurveyID[check_decrease$DatesIncreasing == TRUE]),]
@@ -275,7 +280,7 @@ min_max <- visits_log %>%
   dplyr::select( dplyr::one_of( c( "SeaYear", "MinVis", "MaxVis",
     "ActiveStart", "ActiveEnd", "VisitTypeID", "SurveyID", "VisitID") ) ) %>%
   dplyr::filter( VisitTypeID %in% c( 1, 2 ) ) %>%
-  mutate( MinThresh = MinVis - as.difftime( 7, units = "days" ),
+  dplyr::mutate( MinThresh = MinVis - as.difftime( 7, units = "days" ),
     MaxThresh = MaxVis + as.difftime( 7, units = "days" ) ) %>%
   dplyr::mutate(MinAct = ActiveStart < as.POSIXct( MinThresh ),
                 MaxAct = ActiveEnd   > as.POSIXct( MaxThresh)) %>%
@@ -288,7 +293,7 @@ min_max <- visits_log %>%
 
 # if set before minimum start
 if ( sum( min_max$MinAct, na.rm = TRUE ) > 0 ) {
-  manual_start_error <- min_max[MinAct == TRUE]
+  manual_start_error <- min_max[which( min_max$MinAct == TRUE ),]
   phot_min_max <- uwin_data$Photos %>% dplyr::group_by( VisitID ) %>%
     dplyr::mutate( MinImageDate = min(ImageDate),
                    MaxImageDate = max(ImageDate)) %>%
@@ -297,25 +302,26 @@ if ( sum( min_max$MinAct, na.rm = TRUE ) > 0 ) {
     dplyr::distinct( . )
   manual_start_error <- dplyr::left_join(manual_start_error,
     phot_min_max, by = "VisitID")
-  to_go  <- with( manual_start_error, which( ActiveStart == MinImageDate ))
-  if( length( to_go ) > 0 ) {
-  manual_start_error <- manual_start_error[-to_go,]
+  to_go_e8  <- with( manual_start_error, which( ActiveStart == MinImageDate ))
+  if( length( to_go_e8 ) > 0 ) {
+  manual_start_error <- manual_start_error[-to_go_e8,]
   }
 
   manual_start_error <- manual_start_error %>%
     dplyr::select( dplyr::one_of( c( "SurveyID",
       "ActiveStart", "MinThresh") ) )
-  if( nrow( manual_start_error ) > 0 ){
-  errors <- c( errors, 1 )
+  if( nrow( manual_start_error ) > 0 ){ # error 8
+    errors <- c( errors, 1 )
+  } else { # if actually no errors
+    errors <- c(errors, 0)
   }
-
 } else {
   errors <- c( errors, 0 )
 }
 
 # if end after maximum pull
 if ( sum( min_max$MaxAct, na.rm = TRUE ) > 0 ) {
-  manual_end_error <- min_max[MaxAct == TRUE]
+  manual_end_error <- min_max[which( min_max$MaxAct == TRUE ), ]
   phot_min_max <- uwin_data$Photos %>% dplyr::group_by( VisitID ) %>%
     dplyr::mutate( MinImageDate = min(ImageDate),
       MaxImageDate = max(ImageDate)) %>%
@@ -324,17 +330,19 @@ if ( sum( min_max$MaxAct, na.rm = TRUE ) > 0 ) {
     dplyr::distinct( . )
   manual_end_error <- dplyr::left_join(manual_end_error,
     phot_min_max, by = "VisitID")
-  to_go  <- with( manual_end_error, which( ActiveEnd == MaxImageDate ))
-  if( length( to_go ) > 0 ) {
-    manual_end_error <- manual_end_error[-to_go,]
+  to_go_e9  <- with( manual_end_error, which( ActiveEnd == MaxImageDate ))
+  if( length( to_go_e9 ) > 0 ) {
+    manual_end_error <- manual_end_error[-to_go_e9,]
   }
 
   manual_end_error <- manual_end_error %>%
     dplyr::select( dplyr::one_of( c( "SurveyID",
       "ActiveEnd", "MaxThresh") ) )
 
-  if( nrow( manual_end_error ) > 0 ){
+  if( nrow( manual_end_error ) > 0 ){ # error 9
   errors <- c( errors, 1 )
+  } else {
+    errors <- c( errors, 0)
   }
 } else {
   errors <- c( errors, 0 )
@@ -355,7 +363,7 @@ flipped_entries <- visits_log %>%
  # if end occurs before start
 
 if ( sum( flipped_entries$EndB4Start, na.rm = TRUE ) > 0 ) {
-  end2quick <- flipped_entries[EndB4Start == TRUE]
+  end2quick <- flipped_entries[which( flipped_entries$EndB4Start == TRUE ), ]
   phot_min_max <- uwin_data$Photos %>% dplyr::group_by( VisitID ) %>%
     dplyr::mutate( MinImageDate = min(ImageDate),
       MaxImageDate = max(ImageDate)) %>%
@@ -364,26 +372,27 @@ if ( sum( flipped_entries$EndB4Start, na.rm = TRUE ) > 0 ) {
     dplyr::distinct( . )
   end2quick <- dplyr::left_join(end2quick,
     phot_min_max, by = "VisitID")
-  to_go  <- with( end2quick, which( ActiveEnd == MaxImageDate ))
-  if( length( to_go ) > 0 ) {
-    end2quick <- end2quick[-to_go,]
+  to_go_e10  <- with( end2quick, which( ActiveEnd == MaxImageDate ))
+  if( length( to_go_e10 ) > 0 ) {
+    end2quick <- end2quick[-to_go_e10,]
   }
 
   end2quick <- end2quick %>%
     dplyr::select( dplyr::one_of( c( "SurveyID",
       "ActiveEnd", "MinVis") ) )
-  if( nrow( manual_start_error ) > 0 ){
+  if( nrow( end2quick ) > 0 ){ # error 10
     errors <- c( errors, 1 )
-  }
-
-} else {
+  } else {
+      errors <- c( errors, 0)
+    }
+  } else {
   errors <- c( errors, 0 )
 }
 
 # if start occurs after end
 
 if ( sum( flipped_entries$StartAftEnd, na.rm = TRUE ) > 0 ) {
-  start_aft_end <- flipped_entries[StartAftEnd == TRUE]
+  start_aft_end <- flipped_entries[which(flipped_entries$StartAftEnd == TRUE), ]
   phot_min_max <- uwin_data$Photos %>% dplyr::group_by( VisitID ) %>%
     dplyr::mutate( MinImageDate = min(ImageDate),
       MaxImageDate = max(ImageDate)) %>%
@@ -392,21 +401,62 @@ if ( sum( flipped_entries$StartAftEnd, na.rm = TRUE ) > 0 ) {
     dplyr::distinct( . )
   start_aft_end <- dplyr::left_join(start_aft_end,
     phot_min_max, by = "VisitID")
-  to_go  <- with( start_aft_end, which( ActiveStart == MinImageDate ) )
-  if( length( to_go ) > 0 ) {
-    start_aft_end <- start_aft_end[-to_go,]
+  to_go_e11  <- with( start_aft_end, which( ActiveStart == MinImageDate ) )
+  if( length( to_go_e11 ) > 0 ) {
+    start_aft_end <- start_aft_end[-to_go_e11,]
   }
-
   start_aft_end <- start_aft_end %>%
     dplyr::select( dplyr::one_of( c( "SurveyID",
       "ActiveStart", "MaxVis") ) )
-  if( nrow( manual_start_error ) > 0 ){
+  if( nrow( start_aft_end ) > 0 ){ # error 11
     errors <- c( errors, 1 )
+  } else {
+      errors <- c( errors, 0)
+    }
+  } else {
+  errors <- c( errors, 0 )
   }
 
+# Check to make sure there are ActiveDates for a given survey
+
+n_na <- visits_log %>% dplyr::group_by(SurveyID) %>%
+  dplyr::mutate(n_events = length(SurveyID),
+                NAActiveStart = sum(is.na(ActiveStart)),
+                NAActiveEnd = sum(is.na(ActiveEnd))) %>%
+  dplyr::select(dplyr::one_of(c("SurveyID", "n_events",
+    "NAActiveStart", "NAActiveEnd", "VisitID", "VisitTypeID"))) %>%
+  dplyr::mutate(ErrStart = n_events == NAActiveStart,
+                ErrEnd = n_events == NAActiveEnd) %>%
+  dplyr::filter(VisitTypeID != 3)
+n_na <- n_na[which(n_na$ErrStart == TRUE | n_na$ErrEnd == TRUE),]
+
+if(nrow(n_na) > 0) {
+  # check to see if we actually have photos for the site
+  has_photos <- dplyr::left_join(n_na, uwin_data$Photos, by = "VisitID") %>%
+    dplyr::select(dplyr::one_of(c("SurveyID", "n_events",
+      "NAActiveStart", "NAActiveEnd",
+      "VisitID", "ImageDate", "VisitTypeID"))) %>%
+    dplyr::group_by(VisitID) %>%
+    dplyr::mutate(MinDateInPhotos = min(ImageDate, na.rm = TRUE),
+                  MaxDateInPhotos = max(ImageDate, na.rm = TRUE)) %>%
+    dplyr::select(dplyr::one_of(c("VisitTypeID","SurveyID",
+      "VisitID", "MinDateInPhotos", "MaxDateInPhotos" ))) %>%
+    dplyr::distinct()
+   if(nrow(has_photos) > 0) {
+    no_active <- data.frame(uwinr:::convert_sid(has_photos$SurveyID, uwin_data),
+       has_photos)
+    no_active$VisitTypeID <- with(uwin_data$lkupVisitTypes, {
+      VisitType[no_active$VisitTypeID]
+    })
+     errors <- c(errors, 1)
+   } else {
+     errors <- c(errors, 0)
+   }
 } else {
-  errors <- c( errors, 0 )
+  errors <- c(errors, 0)
 }
+
+
 
 
 
@@ -501,6 +551,12 @@ if (sum(errors) > 0) {
       file = "./error_reports/active_start_after_pull.csv",
       row.names = FALSE)
   }
+
+  if (errors[12] == 1){
+    write.csv(x = no_active,
+      file = "./error_reports/no_active_dates_in_visits_table.csv",
+      row.names = FALSE)
+  }
 # some text for the error messages
   error_frame <-  c(
 "\nThere are rows where Action2ID equals Action1ID during a single\nvisit in the 'Visits' table.\n
@@ -533,7 +589,10 @@ Check file 'active_end_set_wrong_manually.csv' in error_reports.\n",
 Check file 'active_end_before_set.csv' in error_reports.\n",
 
 "\n The 'Visits' table has instances when the 'ActiveStart' was manually\nset after a sampling season should have ended.\n
-Check file 'active_start_after_pull.csv' in error_reports.\n")
+Check file 'active_start_after_pull.csv' in error_reports.\n",
+
+"\n The 'Visits' table has instances where there is no dates in the\n'ActiveStart' or 'ActiveEnd' for a sampling season but the camera trap took photos.\n
+Check file 'no_active_dates_in_visits_table.csv' in error_reports.\n")
 
   to_spl <- uwinr:::create_split("#")
   error_message <- paste("\nThere are/is", sum(errors),
@@ -669,9 +728,12 @@ photos_qaqc <- function(uwin_data = NULL, file_conn = NULL){
 
     uwinr:::fwrt("\n --- PHOTOS TABLE ---\n", file_conn)
     to_add <- c("These errors need to be fixed if possible (e.g., date set wrong)",
-      "but will be censored when data are further summarized.\n",
-      "However, the 'Active Dates' in the Visits table must be\n",
-      "manually altered for each site that these errors occur.")
+      "but will be censored when data are further summarized.",
+      "However, the 'Active Dates' in the Visits table must be",
+      "manually altered for each site that these errors occur.",
+      "If you have already edited these active dates then you",
+      "can remove these photos with censor_photos.",
+      "see ?censor_photos\n")
     uwinr:::fwrt(paste(to_add, collapse = "\n"), file_conn)
     if(errors[1] == 1) {
       ereport <- c("There are images in the 'Photos' table with timestamps that",
@@ -690,7 +752,7 @@ photos_qaqc <- function(uwin_data = NULL, file_conn = NULL){
          "the 'Visits' table. Check file 'imageDate_after_camera_pull.csv'",
          "in the error_reports sub-folder of your working directory to see",
          "the ImageID's causing this error.")
-       uwinr:::fwrt(paste(ereport, collapse = "\n"), file_conn)
+    uwinr:::fwrt(paste(ereport, collapse = "\n"), file_conn)
     }
     uwinr:::fwrt(uwinr:::create_split("-"), file_conn)
   } else {

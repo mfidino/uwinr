@@ -26,5 +26,5 @@
 #'      events (i.e., camera set, camera check, and camera pull) to a numeric ID.}
 #'    }
 #'
-#'  @source A whole bunch of camera trapping
+#' @source A whole bunch of camera trapping
 "uwin_test"

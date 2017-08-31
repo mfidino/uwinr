@@ -38,10 +38,10 @@ uwin_db <- collect_tables( "MY_UWIN_DATABASE.accdb" )
 qaqc_uwin <- do_qaqc( uwin_db )
 
 # remove photos that have an incorrect date / time
-qaqc_uwin <- censor_photos(qaqc_uwin)
+censored_uwin <- censor_photos(qaqc_uwin)
 
 # get only the seasons we are interested in
-uwin_ju17 <- reduce_seasons( qaqc_uwin, start = "JU17" )
+uwin_ju17 <- reduce_seasons( censored_uwin, start = "JU17" )
 
 # create an observation matrix (the number of days a camera trap was active each season)
 obs_mat <- create_observation_matrix( uwin_ju17 )

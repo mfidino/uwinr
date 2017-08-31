@@ -32,10 +32,13 @@ library(uwinr)
 
 # bring in your data, assuming that at copy of your UWIN database is within your 
 # current working directory
-uwin_db <- collect_tables( "UWIN_DB_CHIL.accdb" )
+uwin_db <- collect_tables( "MY_UWIN_DATABASE.accdb" )
 
 # apply quality assurance / quality control
 qaqc_uwin <- do_qaqc( uwin_db )
+
+# remove photos that have an incorrect date / time
+qaqc_uwin <- censor_photos(qaqc_uwin)
 
 # get only the seasons we are interested in
 uwin_ju17 <- reduce_seasons( qaqc_uwin, start = "JU17" )

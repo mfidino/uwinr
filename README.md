@@ -4,7 +4,7 @@
 An R package to query and summarize camera trap data from the Urban Wildlife Information Network (UWIN) database. Furthermore, uwinr provides a number of quality assurance / quality control checks to ensure that data has been entered correctly. A general workflow using uwinr looks like:
 
 1. Pull a copy of the UWIN database into R.
-2. Perform checks on the database to ensure that data is correctly entered (If there are errors, view the error report that is generated, address the issues within the database, and return to step 1).
+2. Perform checks on the database to ensure that data is correctly entered (If there are errors, view the error report that is generated, address the issues within the database, and return to step 1 to see if you have correctly fixed these errors).
 3. Query the seasons of data you are interested in summarizing.
 4. Summarize the data the way you would like to (e.g., detection histories for each species).
 

@@ -13,14 +13,15 @@
 #'   removed from their respective tables. This also will update the active
 #'   dates within the 'Visits' table
 #'
+#' @importFrom magrittr %>%
+#' @importFrom dplyr left_join select one_of
+#'
 #' @details This function requires the following tables in the list object to
 #'   work : \code{'Photos'}, \code{'Detections'}, and \code{'Visits'}.
 #'
 #'   Furthermore, \code{\link{do_qaqc}} must be applied to the uwin list object
 #'   before photos can be summarised.
 #'
-#'   @importFrom magrittr %>%
-#'   @importFrom dplyr left_join select one_of
 #'
 #' @examples
 #'

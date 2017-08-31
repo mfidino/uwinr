@@ -12,10 +12,10 @@
 #'   If \code{database} does contain an absolute path, the file name is relative
 #'   to the current working directory.
 #' @param tables A character vector of the table names to be pulled from the
-#'   UWIN database. If this argument is left blank than \code{tables} is set to
-#'   \code{c("CameraLocations", "Detections", "Photos", "Species",
-#'   "StudyAreas", "Visits", "lkupAction", "lkupDetectionStatus",
-#'   "lkupSeasons", "lkupVisitTypes")}.
+#'   UWIN database. If this argument is left blank then \code{tables} is set to
+#'   include CameraLocations, Detections, Photos, Species,
+#'   StudyAreas, Visits, lkupAction, lkupDetectionStatus,
+#'   lkupSeasons, lkupVisitTypes.
 #'
 #' @return A named list of tables from the UWIN database. Each table will be
 #'   returned as a \code{\link{data.table}} instead of a

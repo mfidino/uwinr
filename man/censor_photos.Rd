@@ -27,9 +27,6 @@ This function requires the following tables in the list object to
 
   Furthermore, \code{\link{do_qaqc}} must be applied to the uwin list object
   before photos can be summarised.
-
-  @importFrom magrittr %>%
-  @importFrom dplyr left_join select one_of
 }
 \examples{
 

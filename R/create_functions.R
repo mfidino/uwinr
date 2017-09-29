@@ -145,12 +145,89 @@ create_observation_matrix <- function(uwin_data = NULL,
   #       already in the visits table
   photoID <- uwin_data$Visits %>%
     dplyr::select(dplyr::one_of(c("SurveyID", "VisitID", "VisitDateTime",
-      "ActiveStart", "ActiveEnd", "VisitTypeID"))) %>%
+      "ActiveStart", "ActiveEnd", "VisitTypeID")))%>%
     stats::na.omit(.)
 
   # split into checks and pull
   checks <- photoID[VisitTypeID == 2]
   pulls  <- photoID[VisitTypeID == 1]
+
+  # some folks may upload all of the data to just the checks or pulls, we
+  # will need to modify what we do here as a result. This will not
+  # mess up cameras that malfunctioned that had an NA for a whole deployment.
+
+  if( nrow( checks ) != nrow( pulls) & nrow( checks ) > 0 ) {
+    photoID <- uwin_data$Visits %>%
+      dplyr::select(dplyr::one_of(c("SurveyID", "VisitID", "VisitDateTime",
+        "ActiveStart", "ActiveEnd", "VisitTypeID")))
+
+      has_na <- photoID %>% dplyr::group_by( SurveyID ) %>%
+        dplyr::filter( VisitTypeID %in% c( 1,2 ) ) %>%
+        dplyr::mutate( has_na = sum( is.na( ActiveStart ) ) ) %>%
+        dplyr::select( dplyr::one_of( c( "SurveyID", "has_na" ) ) ) %>%
+        dplyr::filter( has_na == 1 ) %>%
+        dplyr::distinct()
+
+      for( i in 1: nrow( has_na ) ){
+        just1 <- photoID[ photoID$SurveyID == has_na$SurveyID[i] ]
+        w_na <- which( is.na( just1$ActiveStart ) )
+
+        if( 1 %in% w_na & just1$VisitTypeID[ w_na[1] ] == 1 ) {
+          # put ActiveEnd from check to pull
+          just1$ActiveEnd[ just1$VisitTypeID == 1 ] <-
+            just1$ActiveEnd[ just1$VisitTypeID == 2 ]
+
+          # put VisitDateTime from check to pull Active Start and
+          # ActiveEnd check
+          just1$ActiveStart[ just1$VisitTypeID == 1 ] <-
+            just1$VisitDateTime[ just1$VisitTypeID == 2 ]
+
+          just1$ActiveEnd[ just1$VisitTypeID == 2 ] <-
+            just1$VisitDateTime[ just1$VisitTypeID == 2 ]
+
+          # write over the data
+          photoID[photoID$SurveyID == has_na$SurveyID[i]] <- just1
+
+        } # close if on na in pull
+        if( 2 %in% w_na & just1$VisitTypeID[ w_na[1] ] == 2 ){
+          # put ActiveStart at from pull to check
+          just1$ActiveStart[ just1$VisitTypeID == 2 ] <-
+            just1$ActiveStart[ just1$VisitTypeID == 1 ]
+
+          # put VisitDateTime from set in ActiveEnd on check
+          # and on ActiveStart of pull
+          just1$ActiveEnd[ just1$VisitTypeID == 2 ] <-
+            just1$VisitDateTime[ just1$VisitTypeID == 2 ]
+
+          just1$ActiveStart[ just1$VisitTypeID == 1 ] <-
+            just1$VisitDateTime[ just1$VisitTypeID == 2 ]
+
+          # write over the data
+          photoID[photoID$SurveyID == has_na$SurveyID[i]] <- just1
+
+          } # close if on na in check
+      } # close for loop on na
+
+      # if there are weird malfunctions that flip the dates
+      wrong_direction <- which(photoID$ActiveEnd < photoID$ActiveStart)
+      if( length( wrong_direction ) > 0 ){
+      tmp <- photoID$ActiveEnd[wrong_direction]
+      photoID$ActiveEnd[wrong_direction] <- photoID$ActiveStart[wrong_direction]
+      photoID$ActiveStart[wrong_direction] <- tmp
+      }
+
+      photoID <- photoID %>% stats::na.omit(.)
+      # split into checks and pull
+      checks <- photoID[VisitTypeID == 2]
+      pulls  <- photoID[VisitTypeID == 1]
+
+      # to_warn <- paste0("Photos have either been fully placed in\n",
+      #   "camera checks or camera pulls. If you have not discussed this\n",
+      #   "with Mason Fidino email him at mfidino@lpzoo.org")
+      # warning(to_warn) # warning message
+  } # close if on camera check pull error
+
+
 
   # if we have checks make a checks_list
   if ( nrow(checks) > 1 ) {

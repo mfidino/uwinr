@@ -420,32 +420,37 @@ if ( sum( flipped_entries$StartAftEnd, na.rm = TRUE ) > 0 ) {
 
 # Check to make sure there are ActiveDates for a given survey
 
-n_na <- visits_log %>% dplyr::group_by(SurveyID) %>%
-  dplyr::mutate(n_events = length(SurveyID),
-                NAActiveStart = sum(is.na(ActiveStart)),
-                NAActiveEnd = sum(is.na(ActiveEnd))) %>%
-  dplyr::select(dplyr::one_of(c("SurveyID", "n_events",
-    "NAActiveStart", "NAActiveEnd", "VisitID", "VisitTypeID"))) %>%
-  dplyr::mutate(ErrStart = n_events == NAActiveStart,
-                ErrEnd = n_events == NAActiveEnd) %>%
-  dplyr::filter(VisitTypeID != 3)
-n_na <- n_na[which(n_na$ErrStart == TRUE | n_na$ErrEnd == TRUE),]
+n_na <- visits_log %>% dplyr::filter(is.na(ActiveStart) | is.na(ActiveEnd)) %>%
+  dplyr::filter(VisitTypeID != 3 ) %>%
+  dplyr::select(dplyr::one_of(c("SurveyID", "VisitID", "VisitTypeID")))
 
-if(nrow(n_na) > 0) {
+
+
+if( nrow(n_na) > 0 ) {
   # check to see if we actually have photos for the site
   has_photos <- dplyr::left_join(n_na, uwin_data$Photos, by = "VisitID") %>%
-    dplyr::select(dplyr::one_of(c("SurveyID", "n_events",
-      "NAActiveStart", "NAActiveEnd",
+    dplyr::select(dplyr::one_of(c("SurveyID",
       "VisitID", "ImageDate", "VisitTypeID"))) %>%
     dplyr::group_by(VisitID) %>%
-    dplyr::mutate(MinDateInPhotos = as.character(min(ImageDate, na.rm = TRUE)),
-              MaxDateInPhotos = as.character(max(ImageDate, na.rm = TRUE))) %>%
-    dplyr::select(dplyr::one_of(c("VisitTypeID","SurveyID",
-      "VisitID", "MinDateInPhotos", "MaxDateInPhotos" ))) %>%
-    dplyr::distinct() %>%
     stats::na.omit(.)
 
    if(nrow(has_photos) > 0) {
+
+     has_photos <- has_photos %>%
+       dplyr::mutate(MinDateInPhotos = as.character(min(ImageDate, na.rm = TRUE)),
+         MaxDateInPhotos = as.character(max(ImageDate, na.rm = TRUE))) %>%
+       dplyr::select(dplyr::one_of(c("VisitTypeID","SurveyID",
+         "VisitID", "MinDateInPhotos", "MaxDateInPhotos" ))) %>%
+       dplyr::distinct() %>%
+       stats::na.omit(.)
+
+     for(i in 1: nrow( has_photos ) ) {
+       visits_log$ActiveStart[visits_log$VisitID == has_photos$VisitID[i]] <-
+         has_photos$MinDateInPhotos[i]
+       visits_log$ActiveEnd[visits_log$VisitID == has_photos$VisitID[i]] <-
+         has_photos$MaxDateInPhotos[i]
+     }
+     visits_log$ActiveStart[visits_log$VisitID %in% has_photos$VisitID]
     no_active <- data.frame(uwinr:::convert_sid(has_photos$SurveyID, uwin_data),
        has_photos)
     no_active$VisitTypeID <- with(uwin_data$lkupVisitTypes, {
@@ -594,7 +599,7 @@ Check file 'active_end_before_set.csv' in error_reports.\n",
 "\n The 'Visits' table has instances when the 'ActiveStart' was manually\nset after a sampling season should have ended.\n
 Check file 'active_start_after_pull.csv' in error_reports.\n",
 
-"\n The 'Visits' table has instances where there is no dates in the\n'ActiveStart' or 'ActiveEnd' for a sampling season but the camera trap took photos.\n
+"\n The 'Visits' table has instances where there is no dates in the\n'ActiveStart' or 'ActiveEnd' for a sampling season but the camera trap took photos.\n However, this has been fixed within the Visits table in R\n(but not in the database).\n
 Check file 'no_active_dates_in_visits_table.csv' in error_reports.\n")
 
   to_spl <- uwinr:::create_split("#")

@@ -275,7 +275,8 @@ if (sum(check_decrease$DatesIncreasing) > 0) { # error 7
 data.table::setkey(visits_log, SurveyID, VisitTypeID)
 
 min_max <- visits_log %>%
-  dplyr::mutate( SeaYear = substr( SurveyID, 5, 8 ) ) %>%
+  dplyr::mutate( SeaYear = substr( SurveyID, nchar(SurveyID)-3,
+                                   nchar(SurveyID)) ) %>%
   dplyr::group_by( SeaYear ) %>%
   dplyr::mutate( MinVis = min( VisitDate ), MaxVis = max( VisitDate ) ) %>%
   dplyr::select( dplyr::one_of( c( "SeaYear", "MinVis", "MaxVis",
@@ -352,8 +353,8 @@ if ( sum( min_max$MaxAct, na.rm = TRUE ) > 0 ) {
 # if set after end
 
 flipped_entries <- visits_log %>%
-  dplyr::mutate( SeaYear = substr( SurveyID, nchar(SurveyID)-1,
-    nchar(SurveyID)) ) %>%
+  dplyr::mutate( SeaYear = substr( SurveyID, nchar(SurveyID)-3,
+                                   nchar(SurveyID)) ) %>%
   dplyr::group_by( SeaYear ) %>%
   dplyr::mutate( MinVis = min( VisitDate ), MaxVis = max( VisitDate ) ) %>%
   dplyr::select( dplyr::one_of( c( "SeaYear", "MinVis", "MaxVis",

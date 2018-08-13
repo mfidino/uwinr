@@ -103,7 +103,7 @@ censor_photos <- function(uwin_data = NULL) {
     }
   }
 
-  message(paste0(nrow(start_b4), " photos were censored."))
+  message(paste0(nrow(start_b4) + nrow(ends_aft), " photos were censored."))
   return(uwin_data)
 
 }

@@ -168,8 +168,10 @@ format_detections <- function(uwin_data = NULL, only_verified = FALSE) {
       include 'Detections' in the 'tables' argument of collect_tables ")
   }
   detections <- uwin_data$Detections
+  if(any(detections$StatusID == 3)){
   # remove all deleted ID's (i.e., StatusID == 3)
   detections <- detections[-which(detections$StatusID == 3),]
+  }
 
   # remove Pending ID's (i.e., StatusID == 1)
   if (only_verified) {

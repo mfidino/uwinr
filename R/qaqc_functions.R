@@ -352,7 +352,8 @@ if ( sum( min_max$MaxAct, na.rm = TRUE ) > 0 ) {
 # if set after end
 
 flipped_entries <- visits_log %>%
-  dplyr::mutate( SeaYear = substr( SurveyID, 5, 8 ) ) %>%
+  dplyr::mutate( SeaYear = substr( SurveyID, nchar(SurveyID)-1,
+    nchar(SurveyID)) ) %>%
   dplyr::group_by( SeaYear ) %>%
   dplyr::mutate( MinVis = min( VisitDate ), MaxVis = max( VisitDate ) ) %>%
   dplyr::select( dplyr::one_of( c( "SeaYear", "MinVis", "MaxVis",
@@ -380,7 +381,8 @@ if ( sum( flipped_entries$EndB4Start, na.rm = TRUE ) > 0 ) {
 
   end2quick <- end2quick %>%
     dplyr::select( dplyr::one_of( c( "SurveyID",
-      "ActiveEnd", "MinVis") ) )
+      "ActiveEnd", "MinVis") ) ) %>%
+    data.frame()
   if( nrow( end2quick ) > 0 ){ # error 10
     errors <- c( errors, 1 )
   } else {
@@ -546,7 +548,7 @@ if (sum(errors) > 0) {
 
   if (errors[10] == 1) {
     end2quick <- cbind( end2quick,
-      uwinr:::convert_sid( end2quick$SurveyID, uwin_data = NULL ) )
+      uwinr:::convert_sid( end2quick$SurveyID, uwin_data ) )
     write.csv(x = end2quick,
       file = "./error_reports/active_end_before_set.csv",
       row.names = FALSE)

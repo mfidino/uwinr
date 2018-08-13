@@ -51,7 +51,7 @@ create_photo_time_summary <- function(x = NULL) {
     dplyr::mutate(lags = ifelse(is.na(lags), 1, lags)) %>%
     dplyr::mutate(lags = lags == 1) %>%
     dplyr::mutate(lags = rep(rle(lags)$lengths, rle(lags)$lengths)) %>%
-    dplyr::mutate(lags = ifelse(lags == 1, lead(lags), lags)) %>%
+    dplyr::mutate(lags = ifelse(lags == 1, dplyr::lead(lags), lags)) %>%
     dplyr::group_by(SurveyID, lags) %>%
     dplyr::summarise(FirstID = min(ImageID),
       LastID = max(ImageID), N_errors = length(ImageID)) %>%

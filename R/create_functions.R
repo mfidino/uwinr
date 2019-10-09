@@ -4,8 +4,13 @@ create_surveyID <- function(x = NULL){
   if (!"SurveyID" %in% colnames(x)) {
     #season_switch <- c(2, 3, 4, 1)
     x$SurveyID <- with(x, {
+      ifelse(SeasonID == 4 & data.table::month(VisitDate) == 12,
+        paste(LocationID, SeasonID,
+              substr(data.table::year(VisitDate)+1,3,4), sep = "-"),
       paste(LocationID, SeasonID,
-        substr(data.table::year(VisitDate),3,4), sep = "-")})
+        substr(data.table::year(VisitDate),3,4), sep = "-")
+      )
+          })
   }
 
   return(x)

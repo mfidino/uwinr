@@ -88,3 +88,5 @@ $RECYCLE.BIN/
 
 *example*.R
 
+# no zip files
+*.zip
